@@ -1,0 +1,73 @@
+{
+  "version": "pal98-eng-v3.3-dos",
+  "total_size": 17759414,
+  "sha256": "99b02d73d0a30bf2b3f144868ebdd5ae8eff56dc36a164a494e8ddfffb95cfef",
+  "chunk_count": 8,
+  "chunks": [
+    {
+      "index": 0,
+      "file": "chunks/pal98_data.part00.bin",
+      "size": 2457600,
+      "sha256": "106e2a2c02aeb02e132794a60a89ad61fd798d9abacceb3033e8a217c5c255ae"
+    },
+    {
+      "index": 1,
+      "file": "chunks/pal98_data.part01.bin",
+      "size": 2457600,
+      "sha256": "f6e9caf64efd5f8ad84f5140cacd91e72c6e1643ae8418c642ab82efbce8cdb0"
+    },
+    {
+      "index": 2,
+      "file": "chunks/pal98_data.part02.bin",
+      "size": 2457600,
+      "sha256": "16eaf3bed14c1f4ad55077d89574774d630f9f6413766b6abef302cc86d97979"
+    },
+    {
+      "index": 3,
+      "file": "chunks/pal98_data.part03.bin",
+      "size": 2457600,
+      "sha256": "ca720b20c361ea79db59da6c9ef7c71f5a6f0698ff88a3acdfd61d29622eec1e"
+    },
+    {
+      "index": 4,
+      "file": "chunks/pal98_data.part04.bin",
+      "size": 2457600,
+      "sha256": "bd4ce31bef35cb3e5bf2811e18b4aaac11d0fc12aa997ffeefb5047506b6124c"
+    },
+    {
+      "index": 5,
+      "file": "chunks/pal98_data.part05.bin",
+      "size": 2457600,
+      "sha256": "6ff0d2eb7ac804e55ff99620174d3a11b07217da54df8f3798c652b7ea8f3434"
+    },
+    {
+      "index": 6,
+      "file": "chunks/pal98_data.part06.bin",
+      "size": 2457600,
+      "sha256": "a142b10069180f1ab91935c602890dac8d68fc73737f9e6db60bdacaad21280d"
+    },
+    {
+      "index": 7,
+      "file": "chunks/pal98_data.part07.bin",
+      "size": 556214,
+      "sha256": "b760b0904933892728f82261314439579c57bc25dc0ac8c5d2e3f197c2ecfd26"
+    }
+  ],
+  "languages": [
+    {
+      "id": "m_eng.slf",
+      "label": "English (Fan Translation v3.3)",
+      "use_iso_font": 1
+    },
+    {
+      "id": "m_chs.slf",
+      "label": "简体中文 (98柔情篇)",
+      "use_iso_font": 0
+    },
+    {
+      "id": "m_cht.slf",
+      "label": "繁體中文 (DOS原版)",
+      "use_iso_font": 0
+    }
+  ]
+}

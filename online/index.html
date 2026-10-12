@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Chinese Paladin 98 (English Edition) — Online WebAssembly Player</title>
+  <link rel="icon" type="image/png" href="icon.png">
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #131b33;
+      --panel-border: #283660;
+      --accent: #eab308;
+      --accent-hover: #facc15;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle at top, #172554 0%, #0b1020 65%, #060913 100%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    header {
+      width: 100%;
+      max-width: 1120px;
+      padding: 10px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: rgba(19, 27, 51, 0.88);
+      border-bottom: 1px solid var(--panel-border);
+      backdrop-filter: blur(10px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand img {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .brand-title {
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: 0.2px;
+      color: #fff;
+    }
+    .brand-sub {
+      font-size: 11px;
+      color: var(--cyan);
+      display: block;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    select, .btn {
+      background: #1e293b;
+      color: var(--text);
+      border: 1px solid var(--panel-border);
+      border-radius: 7px;
+      padding: 6px 11px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    select:hover, .btn:hover {
+      border-color: var(--cyan);
+      background: #263554;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #d97706, #eab308);
+      color: #0f172a;
+      border-color: #fde047;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #f59e0b, #facc15);
+    }
+    main {
+      width: 100%;
+      max-width: 1120px;
+      padding: 12px 16px 24px;
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 14px;
+      align-items: start;
+    }
+    @media (max-width: 960px) {
+      main { grid-template-columns: 1fr; }
+    }
+    .stage-card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+    #loaderPanel {
+      width: 100%;
+      background: rgba(11, 16, 32, 0.92);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+    .loader-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    #statusText {
+      font-weight: 600;
+      color: var(--accent);
+    }
+    #byteStats {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      color: var(--cyan);
+    }
+    .progress-track {
+      width: 100%;
+      height: 10px;
+      background: #0f172a;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid #1e293b;
+      margin-bottom: 10px;
+    }
+    #progressFill {
+      height: 100%;
+      width: 5%;
+      background: linear-gradient(90deg, #38bdf8, #10b981, #eab308);
+      transition: width 0.2s ease;
+    }
+    .chunks-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 5px;
+    }
+    @media (max-width: 600px) {
+      .chunks-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    .chunk-chip {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 5px;
+      padding: 4px 6px;
+      font-size: 10.5px;
+      text-align: center;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, monospace;
+    }
+    .chunk-chip.loading {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      background: rgba(56, 189, 248, 0.12);
+    }
+    .chunk-chip.done {
+      border-color: var(--emerald);
+      color: #6ee7b7;
+      background: rgba(16, 185, 129, 0.14);
+    }
+    .canvas-wrap {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      max-height: 540px;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    canvas.emscripten {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      outline: none;
+      image-rendering: pixelated;
+    }
+    #audioUnlockBanner {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .vpad {
+      width: 100%;
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+    }
+    .dpad-group, .action-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .key-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      border-radius: 6px;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      min-width: 40px;
+      text-align: center;
+      box-shadow: 0 2px 0 #0f172a;
+      transition: transform 0.06s ease, background 0.12s;
+    }
+    .key-btn:active, .key-btn.active {
+      transform: translateY(2px);
+      background: #38bdf8;
+      color: #0f172a;
+    }
+    .key-btn.enter-btn {
+      background: #1d4ed8;
+      border-color: #60a5fa;
+    }
+    .key-btn.esc-btn {
+      background: #7c2d12;
+      border-color: #fb923c;
+    }
+    .side-panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 700px;
+      overflow-y: auto;
+    }
+    .side-section h3 {
+      margin: 0 0 6px 0;
+      font-size: 13.5px;
+      color: var(--accent);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding-bottom: 4px;
+    }
+    .shortcut-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .shortcut-table td {
+      padding: 3.5px 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .shortcut-table td:first-child {
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      color: var(--cyan);
+      font-weight: 600;
+      width: 44%;
+    }
+    .guide-box {
+      font-size: 12px;
+      line-height: 1.5;
+      color: #cbd5e1;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid #1e293b;
+      border-radius: 7px;
+      padding: 8px 10px;
+    }
+    .guide-box strong { color: #fff; }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      font-size: 10.5px;
+      border-radius: 4px;
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img src="icon.png" alt="PAL98">
+      <div>
+        <span class="brand-title">Chinese Paladin 98 · 仙剑奇侠传 (English Online Edition)</span>
+        <span class="brand-sub">100% Browser WebAssembly · Multi-Part Streaming · Zero macOS Unsigned Binary</span>
+      </div>
+    </div>
+    <div class="toolbar">
+      <label for="langSelect" style="font-size:12px;color:var(--muted);">Language:</label>
+      <select id="langSelect" title="Switch Game Language">
+        <option value="m_eng.slf">🇬🇧 English (v3.3 Complete)</option>
+        <option value="m_chs.slf">🇨🇳 简体中文 (98柔情篇)</option>
+        <option value="m_cht.slf">🇭🇰 繁體中文 (DOS原版)</option>
+      </select>
+      <button class="btn" id="btnFullscreen" title="Fullscreen Mode">⛶ Fullscreen</button>
+      <button class="btn" id="btnExportSave" title="Download your .rpg Save Files">💾 Export Saves</button>
+      <label class="btn" for="inputImportSave" title="Import .rpg Save File">📂 Import .rpg</label>
+      <input type="file" id="inputImportSave" accept=".rpg,.zip" multiple style="display:none">
+      <button class="btn" id="btnReinstall" title="Clear cache and re-download chunks">🔄 Reset Cache</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="stage-card">
+      <div id="loaderPanel">
+        <div class="loader-top">
+          <span id="statusText">Initializing SDLPal WebAssembly Engine...</span>
+          <span id="byteStats">8 Chunks · 16.94 MB Total</span>
+        </div>
+        <div class="progress-track">
+          <div id="progressFill"></div>
+        </div>
+        <div class="chunks-grid" id="chunksGrid">
+          <div class="chunk-chip" id="chip-0">Part 00</div>
+          <div class="chunk-chip" id="chip-1">Part 01</div>
+          <div class="chunk-chip" id="chip-2">Part 02</div>
+          <div class="chunk-chip" id="chip-3">Part 03</div>
+          <div class="chunk-chip" id="chip-4">Part 04</div>
+          <div class="chunk-chip" id="chip-5">Part 05</div>
+          <div class="chunk-chip" id="chip-6">Part 06</div>
+          <div class="chunk-chip" id="chip-7">Part 07</div>
+        </div>
+      </div>
+
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas class="emscripten" id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
+        <div id="audioUnlockBanner" title="Click anywhere or press Enter/Space to enable OPL2 RIX Music & Sound">🔊 Click Canvas or Press Enter for Audio</div>
+      </div>
+
+      <div class="vpad" aria-label="On-Screen Controls">
+        <div class="dpad-group">
+          <button class="key-btn" data-key="ArrowUp" data-code="38">▲ Up</button>
+          <button class="key-btn" data-key="ArrowDown" data-code="40">▼ Down</button>
+          <button class="key-btn" data-key="ArrowLeft" data-code="37">◄ Left</button>
+          <button class="key-btn" data-key="ArrowRight" data-code="39">► Right</button>
+        </div>
+        <div class="action-group">
+          <button class="key-btn enter-btn" data-key="Enter" data-code="13">Enter / Space (Talk & Search)</button>
+          <button class="key-btn esc-btn" data-key="Escape" data-code="27">ESC (Menu / Cancel)</button>
+          <button class="key-btn" data-key="e" data-code="69">E (Item)</button>
+          <button class="key-btn" data-key="w" data-code="87">W (Equip/Throw)</button>
+          <button class="key-btn" data-key="f" data-code="70">F (Spell)</button>
+          <button class="key-btn" data-key="s" data-code="83">S (Status)</button>
+          <button class="key-btn" data-key="a" data-code="65">A (Auto Atk)</button>
+          <button class="key-btn" data-key="d" data-code="68">D (Defend)</button>
+          <button class="key-btn" data-key="r" data-code="82">R (Repeat)</button>
+          <button class="key-btn" data-key="q" data-code="81">Q (Flee)</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="side-panel">
+      <div class="side-section">
+        <h3>✨ macOS Browser Edition <span class="badge">Safe & Verified</span></h3>
+        <div class="guide-box">
+          Runs 100% inside your browser sandbox via WebAssembly. Game data is split into <strong>8 small chunks (2.34 MB each)</strong> and cached in browser <code>IndexedDB</code> so future visits load instantaneously.
+        </div>
+      </div>
+
+      <div class="side-section">
+        <h3>⌨️ Keyboard & Battle Shortcuts</h3>
+        <table class="shortcut-table">
+          <tr><td>Arrow Keys</td><td>Move / Navigate Menus</td></tr>
+          <tr><td>Enter / Space</td><td>Confirm / Talk / Search</td></tr>
+          <tr><td>Esc / Option</td><td>Open Menu / Cancel</td></tr>
+          <tr><td>E / W / F / S</td><td>Use Item / Equip / Spell / Status</td></tr>
+          <tr><td>A (Battle)</td><td>Auto-Attack with Normal Hit</td></tr>
+          <tr><td>F (Battle)</td><td>Auto-Cast Strongest Spell</td></tr>
+          <tr><td>R / D / Q</td><td>Repeat / Defend / Flee Battle</td></tr>
+          <tr><td>PgUp / PgDn</td><td>Scroll Spell & Item Lists</td></tr>
+        </table>
+      </div>
+
+      <div class="side-section">
+        <h3>🗺️ Chapter 1 English Quick Walkthrough</h3>
+        <div class="guide-box">
+          <strong>1. Li Xiaoyao's Inn (Yuhang Town):</strong><br>
+          Press <strong>Space/Enter</strong> after Aunt Li wakes you with a frying pan. Search your bedroom for <em>Wooden Shoes</em> and <em>Short Coat</em>. Go downstairs and talk to the <strong>Drunken Taoist</strong> at the door.<br><br>
+          <strong>2. Kitchen & Wine Jar:</strong><br>
+          Enter the kitchen, grab the <em>Luzhou Old Cellar Wine</em> and <em>Pan-Fried Dumplings</em> from the table, and give the wine to the Drunken Taoist — he invites you to <strong>Ten-Mile Slope (Shili Po)</strong> at midnight to learn swordplay!<br><br>
+          <strong>3. Fairy Island (Xianling Island):</strong><br>
+          When Aunt Li collapses, get the <em>Guiyuan Pill</em> from Dr. Wang next door, then sail with Zhang Si from the pier to Fairy Island. Smash the <strong>6 elemental statues</strong> on the lotus pond using the <em>stone tablet hammer</em> to open the path to <strong>Qianye Zen Palace</strong> and meet <strong>Zhao Ling'er</strong>!
+        </div>
+      </div>
+
+      <div class="side-section">
+        <h3>💾 Save Game Persistence</h3>
+        <div class="guide-box">
+          In-game saves (<code>System → Save Game → Slot 1..5</code>) are automatically persisted to your browser's <code>IndexedDB</code>. Use <strong>💾 Export Saves</strong> in the top toolbar anytime to download a backup <code>.zip</code> of your <code>1.rpg–5.rpg</code> files.
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="jszip.min.js"></script>
+  <script src="main.js"></script>
+  <script async src="sdlpal.js"></script>
+</body>
+</html>
