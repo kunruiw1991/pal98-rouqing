@@ -1,7 +1,7 @@
 {
-  "version": "pal98-eng-v3.5",
-  "total_size": 17762058,
-  "sha256": "7de4122d9de9510ebb0c1adb0c031ad57cb1f3831da2fb3117cbc4c88e37706c",
+  "version": "pal98-eng-v3.6",
+  "total_size": 17762230,
+  "sha256": "6d55354bcc9061d89bde3dca3114575fe5e0106f334728c2313731f5bfd6403d",
   "chunk_count": 8,
   "chunks": [
     {
@@ -26,37 +26,37 @@
       "index": 3,
       "file": "chunks/pal98_data.part03.bin",
       "size": 2457600,
-      "sha256": "a21bd4f405fcf8b7545d438f0b7d93fafc5c96c5ca6f7390af5b854c4879a0e1"
+      "sha256": "9d0db211a6413d9c11cd01e1625ea37921b7b9400782e73789e578876fef65c1"
     },
     {
       "index": 4,
       "file": "chunks/pal98_data.part04.bin",
       "size": 2457600,
-      "sha256": "8b57ef473c5398729622faef5765d1f4c772bb5d3c840547a9d38557963d1003"
+      "sha256": "2f94ffd3e8e08c2fa1479983acc7d9af82b4d0b43990a2e63e23691a290d7d9d"
     },
     {
       "index": 5,
       "file": "chunks/pal98_data.part05.bin",
       "size": 2457600,
-      "sha256": "374afb3dba528cbd397a05140b4698a58edb1b9a4d16f48a715a3637d7bc204b"
+      "sha256": "4fd951008b988db5f5585043ee6e77aadf2fb94267a960456d3773279f6e8099"
     },
     {
       "index": 6,
       "file": "chunks/pal98_data.part06.bin",
       "size": 2457600,
-      "sha256": "eca0dfc7dbea8b0c64b38a72840dc49ff7ed9e70ef80cbe67a3dcbb4109514d0"
+      "sha256": "69c7d59ea521c85aa17fcdc98e9a2901144ab64efe5122d848c3c56c77f254ba"
     },
     {
       "index": 7,
       "file": "chunks/pal98_data.part07.bin",
-      "size": 558858,
-      "sha256": "cd188fdba762ed63782940fa3e64acc4ed35b87c03d6d221d3b976afa58c3ee9"
+      "size": 559030,
+      "sha256": "a23a9b7fdecb987809c4c680ac74cac14d351e8c895ce9dfc92a9dd23da132bf"
     }
   ],
   "languages": [
     {
       "id": "m_eng.slf",
-      "label": "English (Fan Translation v3.3 + v3.4/v3.5 fixes)",
+      "label": "English (Fan Translation v3.3 + v3.4-v3.6 fixes)",
       "use_iso_font": 1
     },
     {
@@ -70,5 +70,5 @@
       "use_iso_font": 0
     }
   ],
-  "engine": "SDLPal v3.0.2025.0616 + pal98-eng-v3.5 patches (shop info/quantity dialog, safe-point web save, item focus hook)"
+  "engine": "SDLPal v3.0.2025.0616 + pal98-eng-v3.6 patches (street vendor price card + Obtained popup, shop info/quantity dialog, safe-point web save, item focus hook)"
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Applies the pal98-eng-v3.5 engine patches to a pristine SDLPal v3.0.2025.0616 tree.
+"""Applies the pal98-eng-v3.6 engine patches to a pristine SDLPal v3.0.2025.0616 tree.
 
 Usage: apply_patches.py <src_root>
 """
@@ -39,6 +39,10 @@ edit('main.h', crlf('#include "battle.h"\n'), crlf(
     'PAL_C_LINKAGE_BEGIN\n'
     'VOID PAL_WebProcessPendingSave(VOID);\n'
     'VOID PAL_WebNotifyItemFocus(int ctx, int item, int flags);\n'
+    'BOOL PAL_WebVendorConfirm(WORD wScriptEntry);\n'
+    'VOID PAL_WebOnScriptCash(WORD wScriptEntry, int iDelta, BOOL fApplied);\n'
+    'VOID PAL_WebOnScriptAddItem(WORD wScriptEntry, WORD wItem, int iNum, INT iResult);\n'
+    'FLOAT PAL_WebCenterTextSeconds(FLOAT flDefault);\n'
     'PAL_C_LINKAGE_END\n'))
 
 # 3. game.c: safe-point save hook at the top of the main loop
@@ -373,14 +377,62 @@ edit('itemmenu.c', crlf(
     '         return w;\n'
     '      }\n'))
 
-# 6. Makefile: export the web entry points.
+# 6. Makefile: export the web entry points (PAL_WebDebug: QA hooks, v3.6).
 edit('emscripten/Makefile',
      "-s EXPORTED_FUNCTIONS=\"['_EMSCRIPTEN_main']\"",
-     "-s EXPORTED_FUNCTIONS=\"['_EMSCRIPTEN_main','_PAL_WebRequestSave','_PAL_WebInfo']\"")
+     "-s EXPORTED_FUNCTIONS=\"['_EMSCRIPTEN_main','_PAL_WebRequestSave','_PAL_WebInfo','_PAL_WebDebug']\"")
 
 # 7. global.c: zero the save buffer so identical game states give byte-identical .rpg
 #    files (rgwReserved2 and padding were uninitialised malloc memory).
 edit('global.c', 'SAVEDGAME_DOS   *s = (SAVEDGAME_DOS*)malloc(sizeof(SAVEDGAME_DOS));',
      'SAVEDGAME_DOS   *s = (SAVEDGAME_DOS*)calloc(1, sizeof(SAVEDGAME_DOS));', count=2)
+
+# ---------------------------------------------------------------------------
+# pal98-eng-v3.6: street vendors (see palweb.c)
+# ---------------------------------------------------------------------------
+
+# 8. script.c, opcode 0x000A (Yes/No): show the vendor card when the Yes branch
+#    spends money (PAL_WebVendorConfirm does the PAL_ClearDialog(FALSE) itself).
+edit('script.c', crlf(
+    '         PAL_ClearDialog(FALSE);\n'
+    '\n'
+    '         if (!PAL_ConfirmMenu())\n'), crlf(
+    '         //\n'
+    '         // pal98-eng-v3.6: street vendors show price, item, owned count and\n'
+    '         // cash on the Yes/No prompt (plain questions are unchanged).\n'
+    '         //\n'
+    '         if (!PAL_WebVendorConfirm(wScriptEntry))\n'))
+
+# 9. script.c, opcode 0x001E (cash): report payments / refusals.
+edit('script.c', crlf(
+    '         // not enough cash\n'
+    '         //\n'
+    '         wScriptEntry = pScript->rgwOperand[1] - 1;\n'), crlf(
+    '         // not enough cash\n'
+    '         //\n'
+    '         PAL_WebOnScriptCash(wScriptEntry, (SHORT)(pScript->rgwOperand[0]), FALSE);\n'
+    '         wScriptEntry = pScript->rgwOperand[1] - 1;\n'))
+
+edit('script.c', crlf(
+    '         gpGlobals->dwCash += (SHORT)(pScript->rgwOperand[0]);\n'), crlf(
+    '         gpGlobals->dwCash += (SHORT)(pScript->rgwOperand[0]);\n'
+    '         PAL_WebOnScriptCash(wScriptEntry, (SHORT)(pScript->rgwOperand[0]), TRUE);\n'))
+
+# 10. script.c, opcode 0x001F (add item): "Obtained <item> x<n>" after a purchase.
+edit('script.c', crlf(
+    '      // Add item to inventory\n'
+    '      //\n'
+    '      PAL_AddItemToInventory(pScript->rgwOperand[0], (SHORT)(pScript->rgwOperand[1]));\n'), crlf(
+    '      // Add item to inventory\n'
+    '      //\n'
+    '      // pal98-eng-v3.6: tell the player what a scripted purchase gave them.\n'
+    '      //\n'
+    '      PAL_WebOnScriptAddItem(wScriptEntry, pScript->rgwOperand[0], (SHORT)(pScript->rgwOperand[1]),\n'
+    '         PAL_AddItemToInventory(pScript->rgwOperand[0], (SHORT)(pScript->rgwOperand[1])));\n'))
+
+# 11. text.c: the centered "Obtained ..." window after a purchase stays readable.
+edit('text.c', crlf(
+    '         PAL_DialogWaitForKeyWithMaximumSeconds(1.4);\n'), crlf(
+    '         PAL_DialogWaitForKeyWithMaximumSeconds(PAL_WebCenterTextSeconds(1.4f));\n'))
 
 print('patched OK')

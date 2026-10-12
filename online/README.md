@@ -5,10 +5,25 @@
 - **Zero Unsigned Binary Installation:** Runs 100% inside the browser sandbox via Emscripten WebAssembly (`sdlpal.wasm` + `sdlpal.js`) with OPL2 RIX music and sound effects.
 - **Multi-Part Chunked Streaming (`chunks/`):** Game data (~16.9 MB compressed) is split into **8 small parts (`Part 00` – `Part 07`, `<= 2.34 MB` each)**, fetched in parallel over HTTP, verified against the SHA-256 checksums in `chunks/manifest.json`, and persisted in browser `IndexedDB` so subsequent visits boot instantly (`0 MB` download).
 - **3 Built-In Languages, chosen once on the start screen** (no mid-game restart button, so a misclick can never send you back to the title screen):
-  - `🇬🇧 English (v3.5)` — default (`m_eng.slf`, fan translation v3.3 + v3.4/v3.5 fixes, ISO pixel font)
+  - `🇬🇧 English (v3.6)` — default (`m_eng.slf`, fan translation v3.3 + v3.4–v3.6 fixes, ISO pixel font)
   - `🇨🇳 简体中文 (98柔情篇)` (`m_chs.slf`)
   - `🇭🇰 繁體中文 (DOS原版)` (`m_cht.slf`)
 - **Saves:** in-game saves (`1.rpg` – `5.rpg`) persist to `IndexedDB` and can be exported/imported as `.zip` or `.rpg` from the toolbar. Imported saves are size-validated, out-of-range script pointers are repaired, and files not named `1.rpg`–`5.rpg` are assigned to a slot.
+
+## v3.6 (`pal98-eng-v3.6`)
+
+- **Street vendors show the price before you say Yes.** Street vendors are scripted events, not shop menus. This covers the Yuhang fruit stall, the Suzhou and capital sugar-ball (冰糖葫芦) sellers, the rice and wine sellers, and paid services such as prison visits, the beggar and the Maoshan Taoist.
+  - Their Yes/No prompt now shows a card with:
+    - the item and quantity, its price and effect (e.g. `Recover 22 HP and MP` / `HPMP+22`);
+    - how many you already own, and your cash;
+    - "No money" if you can't afford it.
+  - Services show the cost and your cash.
+  - No is still the default answer.
+- **You see what you bought.** A scripted purchase used to add the item silently. Now a centered **"Obtained Sugar Ball ×1"** / **"得到 糖葫芦 ×1"** window shows the amount paid, the new owned count and the cash left.
+  - The Yuhang fruit stall already had its own `Obtained "Fruit"` window. It now stays up long enough to read: keys are ignored for 0.5 s, and it lasts up to 3 s instead of 1.4 s.
+- **The dialogue states the price too.** In EN/简体/繁體, the fruit seller says `Only 25G a pound!` / `一斤只要２５文钱喔！`. The sugar-ball sellers say `Sugar Ball, 20G each. Want one?` / `买糖葫芦吗？一串２０文钱` and `Sugar Ball, only 30G each!` / `一串只要３０文钱！`.
+- **The inspector under the game** follows vendor events. Before buying it shows the price, description, owned count and cash. After buying it shows, e.g., `✓ Purchased Sugar Ball ×1 (−20 G) · Cash: 980 G · Owned: 3`.
+- The 13 vendor prompts found by scanning all 42,309 `sss.mkf` script entries are listed in [`engine/README.md`](engine/README.md), along with the engine changes and the `PAL98.qa` test hooks.
 
 ## v3.5 (`pal98-eng-v3.5`)
 
@@ -23,7 +38,8 @@
 
 `sdlpal.wasm` is SDLPal `v3.0.2025.0616` (the same tag, SDL3 commit and emsdk 4.0.7 as the official release build) plus a small patch set:
 
-- `palweb.c`: `PAL_WebRequestSave` and `PAL_WebInfo`
+- `palweb.c`: `PAL_WebRequestSave`, `PAL_WebInfo`, the street vendor card / "Obtained" window (v3.6) and the `PAL_WebDebug` QA hooks
+- the vendor hooks for script opcodes `0x000A` / `0x001E` / `0x001F` in `script.c` (v3.6)
 - the shop purchase dialog in `uigame.c`
 - an item-focus hook in `itemmenu.c`
 - the safe-point save call in `game.c`

@@ -1,12 +1,12 @@
 (function () {
   'use strict';
 
-  var DATA_VERSION = 'pal98-eng-v3.5';
+  var DATA_VERSION = 'pal98-eng-v3.6';
   // Cache key for sdlpal.wasm (must change whenever the engine binary changes).
-  var ENGINE_VERSION = 'pal98-eng-v3.5.2';
+  var ENGINE_VERSION = 'pal98-eng-v3.6';
   var DEFAULT_LANG = 'm_eng.slf';
   var LANGS = {
-    'm_eng.slf': { code: 'en', badge: '🇬🇧 English (v3.5)', status: 'English v3.5' },
+    'm_eng.slf': { code: 'en', badge: '🇬🇧 English (v3.6)', status: 'English v3.6' },
     'm_chs.slf': { code: 'chs', badge: '🇨🇳 简体中文 (98柔情篇)', status: '简体中文' },
     'm_cht.slf': { code: 'cht', badge: '🇭🇰 繁體中文 (DOS原版)', status: '繁體中文' }
   };
@@ -40,14 +40,19 @@
       backup: 'The previous Slot 5 save was kept as {f} (included in 💾 Export Saves; import it to restore).',
       fsEnter: '⛶ Fullscreen', fsExit: '✕ Exit Fullscreen',
       running: 'Running ({l}) — Arrow Keys, Enter/Space & Esc',
-      inspIdle: 'Highlight an item in a shop, your inventory or the equip menu to see its stats and who can equip it.',
+      inspIdle: 'Highlight an item in a shop, your inventory or the equip menu, or talk to a street vendor, to see prices, stats and who can equip it.',
       inspShopTip: 'In the shop press Enter on an item to choose how many to buy (◄ ► ±1, ▲ ▼ ±10).',
       price: 'Price', sell: 'Sells for', have: 'You have', cash: 'Cash', canBuy: 'Affordable',
       wearers: 'Who can equip', party: 'Your party', notInParty: 'not in party', cannot: 'cannot equip',
       replaces: 'replaces', nothing: 'nothing', equipped: 'already wears this', hitsAll: 'Hits all enemies', twice: 'Attacks twice',
       combo: 'Combo spell', regen: 'Regenerates HP/MP in battle', anyone: 'Anyone',
       parts: { head: 'Headgear', body: 'Body gear', clothes: 'Clothing', weapon: 'Weapon', feet: 'Footwear', accessory: 'Accessory' },
-      ctx: { 1: 'Shop', 2: 'Inventory' }
+      ctx: { 1: 'Shop', 2: 'Inventory', 3: 'Vendor' },
+      unit: 'G', cost: 'Cost', owned: 'Owned', paid: 'Paid',
+      vendorTip: 'Choose Yes to buy, No to walk away.',
+      serviceTip: 'Choose Yes to pay, No to walk away.',
+      purchased: '✓ Purchased', paidOk: '✓ Paid', declined: 'You said No, so nothing was bought.',
+      short: '✗ Not enough money', need: 'needs', bagFull: 'bag full, item not added'
     },
     chs: {
       quickSave: '⚡ 快速存档（进度五）',
@@ -61,14 +66,19 @@
       backup: '原进度五已备份为 {f}（可用 💾 Export Saves 导出）。',
       fsEnter: '⛶ 全屏', fsExit: '✕ 退出全屏',
       running: '运行中（{l}）— 方向键、Enter/空格、Esc',
-      inspIdle: '在商店、物品栏或装备菜单中选中一件物品，即可查看属性数值和可装备的人物。',
+      inspIdle: '在商店、物品栏或装备菜单中选中物品，或与街头小贩交谈，即可查看价格、属性数值和可装备的人物。',
       inspShopTip: '在商店中对物品按 Enter 可选择购买数量（◄ ► ±1，▲ ▼ ±10）。',
       price: '价格', sell: '卖出价', have: '现有', cash: '金钱', canBuy: '可买',
       wearers: '可装备人物', party: '队伍', notInParty: '不在队伍中', cannot: '不可装备',
       replaces: '替换', nothing: '无', equipped: '已装备此物', hitsAll: '攻击敌方全体', twice: '每回合攻击两次',
       combo: '合体法术', regen: '战斗中每回合恢复HP/MP', anyone: '全员',
       parts: { head: '头戴', body: '披挂', clothes: '身穿', weapon: '手持', feet: '脚穿', accessory: '配带' },
-      ctx: { 1: '商店', 2: '物品' }
+      ctx: { 1: '商店', 2: '物品', 3: '小贩' },
+      unit: '文', cost: '需付', owned: '现有', paid: '花费',
+      vendorTip: '选“是”购买，选“否”离开。',
+      serviceTip: '选“是”付钱，选“否”离开。',
+      purchased: '✓ 已购买', paidOk: '✓ 已付', declined: '选了“否”，没有购买。',
+      short: '✗ 钱不够', need: '需要', bagFull: '物品栏已满，未能放入'
     },
     cht: {
       quickSave: '⚡ 快速存檔（進度五）',
@@ -82,14 +92,19 @@
       backup: '原進度五已備份為 {f}（可用 💾 Export Saves 匯出）。',
       fsEnter: '⛶ 全螢幕', fsExit: '✕ 退出全螢幕',
       running: '執行中（{l}）— 方向鍵、Enter/空白鍵、Esc',
-      inspIdle: '在商店、物品欄或裝備選單中選中一件物品，即可查看屬性數值和可裝備的人物。',
+      inspIdle: '在商店、物品欄或裝備選單中選中物品，或與街頭小販交談，即可查看價格、屬性數值和可裝備的人物。',
       inspShopTip: '在商店中對物品按 Enter 可選擇購買數量（◄ ► ±1，▲ ▼ ±10）。',
       price: '價格', sell: '賣出價', have: '現有', cash: '金錢', canBuy: '可買',
       wearers: '可裝備人物', party: '隊伍', notInParty: '不在隊伍中', cannot: '不可裝備',
       replaces: '替換', nothing: '無', equipped: '已裝備此物', hitsAll: '攻擊敵方全體', twice: '每回合攻擊兩次',
       combo: '合體法術', regen: '戰鬥中每回合恢復HP/MP', anyone: '全員',
       parts: { head: '頭戴', body: '披掛', clothes: '身穿', weapon: '手持', feet: '腳穿', accessory: '配帶' },
-      ctx: { 1: '商店', 2: '物品' }
+      ctx: { 1: '商店', 2: '物品', 3: '小販' },
+      unit: '文', cost: '需付', owned: '現有', paid: '花費',
+      vendorTip: '選「是」購買，選「否」離開。',
+      serviceTip: '選「是」付錢，選「否」離開。',
+      purchased: '✓ 已購買', paidOk: '✓ 已付', declined: '選了「否」，沒有購買。',
+      short: '✗ 錢不夠', need: '需要', bagFull: '物品欄已滿，未能放入'
     }
   };
   function S() { return STR[LANGS[currentLang].code] || STR.en; }
@@ -590,9 +605,87 @@
   }
 
   Module_onPalItemFocus = function (ctx, item, flags) {
+    // A shop/inventory focus replaces the vendor panel, but "focus cleared" keeps the
+    // last vendor result visible.
+    if (!ctx && inspState.ctx === 3) return;
     inspState = { ctx: ctx, item: item, flags: flags };
     if (!inspRaf) inspRaf = requestAnimationFrame(function () { inspRaf = 0; renderInspector(); });
   };
+
+  // ---------------------------------------------------------------------------
+  // Street vendors (engine hook, v3.6): kind 1 = Yes/No card shown, 2 = item bought,
+  // 3 = answered No, 4 = service paid, 5 = not enough money.
+  // ---------------------------------------------------------------------------
+  var vendorState = null;
+  var vendorLog = [];
+  Module_onPalVendor = function (kind, item, qty, amount, extra) {
+    var ev = {
+      kind: kind, item: item, qty: qty, amount: amount, extra: extra,
+      cash: webInfo(1), have: item ? webInfo(8, item) : -1, scene: webInfo(2), t: Date.now()
+    };
+    if (kind !== 1 && vendorState) ev.prompt = vendorState.kind === 1 ? vendorState : vendorState.prompt;
+    vendorState = ev;
+    vendorLog.push(ev);
+    if (vendorLog.length > 50) vendorLog.shift();
+    inspState = { ctx: 3, item: item, flags: 0 };
+    if (!inspRaf) inspRaf = requestAnimationFrame(function () { inspRaf = 0; renderInspector(); });
+  };
+
+  function renderVendor(box) {
+    var s = S();
+    var lang = LANGS[currentLang].code;
+    var v = vendorState;
+    var items = window.PAL98_ITEMS || {};
+    var it = v.item ? items[v.item] : null;
+    var name = it ? (it.n[lang] || it.n.en) : (v.item ? '#' + v.item : '');
+    var sub = (it && lang !== 'en' && it.n.en) ? ' <small>' + esc(it.n.en) + '</small>' : '';
+    var u = ' ' + s.unit;
+    var html = '<div class="insp-head"><span class="insp-ctx">' + esc(s.ctx[3]) + '</span>';
+    var foot = [];
+    var tip = '';
+    var cls = 'inspector';
+    if (v.kind === 1) {
+      if (it || v.item) {
+        html += '<span class="insp-name">' + esc(name) + ' ×' + v.qty + sub + '</span>' +
+          '<span class="insp-price">' + esc(s.price) + ' <b>' + v.amount + u + '</b></span></div>';
+        var desc = it ? (it.d[lang] || it.d.en) : null;
+        if (desc && desc.length) html += '<div class="insp-desc">' + desc.map(esc).join('<br>') + '</div>';
+        foot.push(esc(s.have) + ' <b>' + Math.max(0, v.have) + '</b>');
+        tip = s.vendorTip;
+      } else {
+        html += '<span class="insp-price">' + esc(s.cost) + ' <b>' + v.amount + u + '</b></span></div>';
+        tip = s.serviceTip;
+      }
+      foot.push(esc(s.cash) + ' <b>' + v.cash + u + '</b>');
+      if (v.cash < v.amount) foot.push('<span class="insp-bad">' + esc(s.short) + ' (' + esc(s.need) + ' ' + v.amount + u + ')</span>');
+    } else if (v.kind === 2) {
+      html += '<span class="insp-name insp-ok">' + esc(s.purchased) + ' ' + esc(name) + ' ×' + v.qty + sub + '</span>' +
+        '<span class="insp-price">(−' + v.amount + u + ')</span></div>';
+      foot.push(esc(s.cash) + ': <b>' + v.cash + u + '</b>');
+      foot.push(esc(s.owned) + ': <b>' + Math.max(0, v.have) + '</b>');
+      if (!v.extra) foot.push('<span class="insp-bad">' + esc(s.bagFull) + '</span>');
+      cls += ' vendor-done';
+    } else if (v.kind === 4) {
+      html += '<span class="insp-name insp-ok">' + esc(s.paidOk) + ' ' + v.amount + u + '</span></div>';
+      foot.push(esc(s.cash) + ': <b>' + v.cash + u + '</b>');
+      cls += ' vendor-done';
+    } else if (v.kind === 5) {
+      html += '<span class="insp-name insp-bad">' + esc(s.short) + '</span></div>';
+      foot.push(esc(s.need) + ' <b>' + v.amount + u + '</b>');
+      foot.push(esc(s.cash) + ' <b>' + v.cash + u + '</b>');
+    } else {
+      var p = v.prompt;
+      var pit = p && p.item ? items[p.item] : null;
+      html += '<span class="insp-name">' + (pit ? esc(pit.n[lang] || pit.n.en) + ' ×' + p.qty + ' · ' : '') +
+        (p ? esc(pit ? s.price : s.cost) + ' ' + p.amount + u : '') + '</span></div>';
+      foot.push(esc(s.declined));
+      foot.push(esc(s.cash) + ' <b>' + v.cash + u + '</b>');
+    }
+    if (foot.length) html += '<div class="insp-foot">' + foot.join(' · ') + '</div>';
+    if (tip) html += '<div class="insp-tip">' + esc(tip) + '</div>';
+    box.className = cls;
+    box.innerHTML = html;
+  }
 
   function renderInspector() {
     var box = document.getElementById('inspector');
@@ -600,6 +693,10 @@
     var s = S();
     var lang = LANGS[currentLang].code;
     var items = window.PAL98_ITEMS || {};
+    if (inspState.ctx === 3 && vendorState) {
+      renderVendor(box);
+      return;
+    }
     var it = items[inspState.item];
     if (!inspState.ctx || !it) {
       box.className = 'inspector idle';
@@ -702,7 +799,7 @@
   // ---------------------------------------------------------------------------
   // Emscripten Module
   // ---------------------------------------------------------------------------
-  var Module_onPalSaved, Module_onPalItemFocus;
+  var Module_onPalSaved, Module_onPalItemFocus, Module_onPalVendor;
 
   window.Module = {
     preRun: [],
@@ -733,6 +830,7 @@
     })(),
     onPalSaved: function (slot, savedTimes) { Module_onPalSaved(slot, savedTimes); },
     onPalItemFocus: function (ctx, item, flags) { Module_onPalItemFocus(ctx, item, flags); },
+    onPalVendor: function (kind, item, qty, amount, extra) { Module_onPalVendor(kind, item, qty, amount, extra); },
     setStatus: function (text) {
       if (text) setStatus(text);
     },
@@ -1011,6 +1109,15 @@
       return { gameRunning: gameRunning, dataReady: dataReady, lang: currentLang, lastSaveAt: lastSaveAt, pending: pendingSaveReason, inspector: inspState };
     },
     start: startGameFromSetup,
-    selectLang: selectLang
+    selectLang: selectLang,
+    // Street vendor state (v3.6): last engine event and a short history.
+    vendor: function () { return { state: vendorState, log: vendorLog.slice() }; },
+    // QA helpers (engine PAL_WebDebug): warp at the next free-roam frame, set cash, add items.
+    qa: {
+      warp: function (scene, x, y, dir) { return Module._PAL_WebDebug(1, scene, x, y, dir || 0); },
+      cash: function (n) { return Module._PAL_WebDebug(2, n, 0, 0, 0); },
+      addItem: function (item, n) { return Module._PAL_WebDebug(3, item, n === undefined ? 1 : n, 0, 0); },
+      setEventScript: function (eventObject, entry) { return Module._PAL_WebDebug(4, eventObject, entry, 0, 0); }
+    }
   };
 })();
