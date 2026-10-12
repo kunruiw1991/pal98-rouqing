@@ -1,18 +1,104 @@
 (function () {
-  var DATA_VERSION = 'pal98-eng-v3.4-patched';
+  'use strict';
+
+  var DATA_VERSION = 'pal98-eng-v3.5';
   var DEFAULT_LANG = 'm_eng.slf';
-  var currentLang = localStorage.getItem('pal98_lang') || DEFAULT_LANG;
+  var LANGS = {
+    'm_eng.slf': { code: 'en', badge: '🇬🇧 English (v3.5)', status: 'English v3.5' },
+    'm_chs.slf': { code: 'chs', badge: '🇨🇳 简体中文 (98柔情篇)', status: '简体中文' },
+    'm_cht.slf': { code: 'cht', badge: '🇭🇰 繁體中文 (DOS原版)', status: '繁體中文' }
+  };
+  var currentLang = localStorage.getItem('pal98_lang');
+  if (!LANGS[currentLang]) currentLang = DEFAULT_LANG;
+
+  var AUTOSAVE_SLOT = 5;
+  var AUTOSAVE_INTERVAL_MS = 5 * 60 * 1000;
+  var HIDDEN_SAVE_MIN_GAP_MS = 60 * 1000;
+  var CANVAS_W = 640, CANVAS_H = 400;
+
   var gameRunning = false;
+  var dataReady = false;
 
   // SAVEDGAME_DOS layout (sdlpal global.c): fixed part = 12864 bytes, then EVENTOBJECT[n] (32 bytes each).
   var RPG_MIN_SIZE = 12864;
 
-  // Track all WebAudio contexts so we can resume them on first user click/keydown on macOS
+  // ---------------------------------------------------------------------------
+  // UI strings (page chrome follows the language chosen on the start screen)
+  // ---------------------------------------------------------------------------
+  var STR = {
+    en: {
+      quickSave: '⚡ Quick Save (Slot 5)',
+      autoIdle: '⏱ Auto-save every 5 min → Slot 5',
+      saved: '✓ Auto-saved to Slot 5 ({t})',
+      quickSaved: '✓ Quick-saved to Slot 5 ({t})',
+      pending: '⏳ Saving to Slot 5 as soon as you are back to exploring…',
+      unavailable: 'Auto-save unavailable',
+      notInGame: 'Start or load a game first',
+      backup: 'The previous Slot 5 save was kept as {f} (included in 💾 Export Saves; import it to restore).',
+      fsEnter: '⛶ Fullscreen', fsExit: '✕ Exit Fullscreen',
+      running: 'Running ({l}) — Arrow Keys, Enter/Space & Esc',
+      inspIdle: 'Highlight an item in a shop, your inventory or the equip menu to see its stats and who can equip it.',
+      inspShopTip: 'In the shop press Enter on an item to choose how many to buy (◄ ► ±1, ▲ ▼ ±10).',
+      price: 'Price', sell: 'Sells for', have: 'You have', cash: 'Cash', canBuy: 'Affordable',
+      wearers: 'Who can equip', party: 'Your party', notInParty: 'not in party', cannot: 'cannot equip',
+      replaces: 'replaces', nothing: 'nothing', hitsAll: 'Hits all enemies', twice: 'Attacks twice',
+      combo: 'Combo spell', regen: 'Regenerates HP/MP in battle', anyone: 'Anyone',
+      parts: { head: 'Headgear', body: 'Body gear', clothes: 'Clothing', weapon: 'Weapon', feet: 'Footwear', accessory: 'Accessory' },
+      ctx: { 1: 'Shop', 2: 'Inventory' }
+    },
+    chs: {
+      quickSave: '⚡ 快速存档（进度五）',
+      autoIdle: '⏱ 每5分钟自动存档 → 进度五',
+      saved: '✓ 已自动存档到进度五（{t}）',
+      quickSaved: '✓ 已快速存档到进度五（{t}）',
+      pending: '⏳ 回到自由行走状态后立即存入进度五…',
+      unavailable: '自动存档不可用',
+      notInGame: '请先开始或读取游戏',
+      backup: '原进度五已备份为 {f}（可用 💾 Export Saves 导出）。',
+      fsEnter: '⛶ 全屏', fsExit: '✕ 退出全屏',
+      running: '运行中（{l}）— 方向键、Enter/空格、Esc',
+      inspIdle: '在商店、物品栏或装备菜单中选中一件物品，即可查看属性数值和可装备的人物。',
+      inspShopTip: '在商店中对物品按 Enter 可选择购买数量（◄ ► ±1，▲ ▼ ±10）。',
+      price: '价格', sell: '卖出价', have: '现有', cash: '金钱', canBuy: '可买',
+      wearers: '可装备人物', party: '队伍', notInParty: '不在队伍中', cannot: '不可装备',
+      replaces: '替换', nothing: '无', hitsAll: '攻击敌方全体', twice: '每回合攻击两次',
+      combo: '合体法术', regen: '战斗中每回合恢复HP/MP', anyone: '全员',
+      parts: { head: '头戴', body: '披挂', clothes: '身穿', weapon: '手持', feet: '脚穿', accessory: '配带' },
+      ctx: { 1: '商店', 2: '物品' }
+    },
+    cht: {
+      quickSave: '⚡ 快速存檔（進度五）',
+      autoIdle: '⏱ 每5分鐘自動存檔 → 進度五',
+      saved: '✓ 已自動存檔到進度五（{t}）',
+      quickSaved: '✓ 已快速存檔到進度五（{t}）',
+      pending: '⏳ 回到自由行走狀態後立即存入進度五…',
+      unavailable: '自動存檔不可用',
+      notInGame: '請先開始或讀取遊戲',
+      backup: '原進度五已備份為 {f}（可用 💾 Export Saves 匯出）。',
+      fsEnter: '⛶ 全螢幕', fsExit: '✕ 退出全螢幕',
+      running: '執行中（{l}）— 方向鍵、Enter/空白鍵、Esc',
+      inspIdle: '在商店、物品欄或裝備選單中選中一件物品，即可查看屬性數值和可裝備的人物。',
+      inspShopTip: '在商店中對物品按 Enter 可選擇購買數量（◄ ► ±1，▲ ▼ ±10）。',
+      price: '價格', sell: '賣出價', have: '現有', cash: '金錢', canBuy: '可買',
+      wearers: '可裝備人物', party: '隊伍', notInParty: '不在隊伍中', cannot: '不可裝備',
+      replaces: '替換', nothing: '無', hitsAll: '攻擊敵方全體', twice: '每回合攻擊兩次',
+      combo: '合體法術', regen: '戰鬥中每回合恢復HP/MP', anyone: '全員',
+      parts: { head: '頭戴', body: '披掛', clothes: '身穿', weapon: '手持', feet: '腳穿', accessory: '配帶' },
+      ctx: { 1: '商店', 2: '物品' }
+    }
+  };
+  function S() { return STR[LANGS[currentLang].code] || STR.en; }
+  function fmt(s, o) { return s.replace(/\{(\w+)\}/g, function (_, k) { return o[k] !== undefined ? o[k] : ''; }); }
+  function hhmmss() { var d = new Date(); return [d.getHours(), d.getMinutes(), d.getSeconds()].map(function (n) { return ('0' + n).slice(-2); }).join(':'); }
+
+  // ---------------------------------------------------------------------------
+  // WebAudio unlock (macOS Safari/Chrome require a user gesture)
+  // ---------------------------------------------------------------------------
   var trackedAudioContexts = [];
   var OrigAudioContext = window.AudioContext || window.webkitAudioContext;
   if (OrigAudioContext) {
-    var PatchedAudioContext = function () {
-      var ctx = new OrigAudioContext();
+    var PatchedAudioContext = function (opts) {
+      var ctx = opts ? new OrigAudioContext(opts) : new OrigAudioContext();
       trackedAudioContexts.push(ctx);
       return ctx;
     };
@@ -23,20 +109,18 @@
 
   function unlockAudio() {
     var resumedAny = false;
-    trackedAudioContexts.forEach(function (ctx) {
+    var ctxs = trackedAudioContexts.slice();
+    ['SDL3', 'SDL2'].forEach(function (k) {
+      if (window.Module && Module[k] && Module[k].audioContext) ctxs.push(Module[k].audioContext);
+    });
+    ctxs.forEach(function (ctx) {
       if (ctx && ctx.state === 'suspended') {
         ctx.resume().catch(function () {});
         resumedAny = true;
       }
     });
-    if (window.Module && Module.SDL2 && Module.SDL2.audioContext) {
-      if (Module.SDL2.audioContext.state === 'suspended') {
-        Module.SDL2.audioContext.resume().catch(function () {});
-        resumedAny = true;
-      }
-    }
     var banner = document.getElementById('audioUnlockBanner');
-    if (banner && (resumedAny || trackedAudioContexts.some(function (c) { return c.state === 'running'; }))) {
+    if (banner && gameRunning && (resumedAny || ctxs.some(function (c) { return c && c.state === 'running'; }))) {
       banner.style.display = 'none';
     }
   }
@@ -49,51 +133,12 @@
   var byteStatsEl = document.getElementById('byteStats');
   var progressFillEl = document.getElementById('progressFill');
   var loaderPanelEl = document.getElementById('loaderPanel');
-  var langSelectEl = document.getElementById('langSelect');
-
-  // Persist /data to IndexedDB unless a sync is already in flight (either a manual
-  // FS.syncfs() or the IDBFS autoPersist queue), avoiding overlapping syncs.
-  function syncDataIfIdle(cb) {
-    var done = function () { if (cb) cb(); };
-    if (typeof FS === 'undefined') { done(); return; }
-    try {
-      var busy = (FS.syncFSRequests || 0) > 0;
-      try {
-        var mnt = FS.lookupPath('/data').node.mount;
-        if (mnt && mnt.idbPersistState) busy = true;
-      } catch (e) {}
-      if (busy) { done(); return; }
-      FS.syncfs(false, function () { done(); });
-    } catch (e) {
-      done();
-    }
-  }
-
-  if (langSelectEl) {
-    langSelectEl.value = currentLang;
-    langSelectEl.addEventListener('change', function () {
-      var newLang = langSelectEl.value;
-      if (gameRunning && !confirm('Switching language will reload the game. Any unsaved progress since your last in-game save will be lost. Continue?')) {
-        langSelectEl.value = currentLang;
-        return;
-      }
-      localStorage.setItem('pal98_lang', newLang);
-      currentLang = newLang;
-      if (typeof FS !== 'undefined') {
-        try {
-          writeSdlPalConfig(newLang);
-          setStatus('Switching language to ' + newLang + '...');
-          FS.syncfs(false, function () {
-            window.location.reload();
-          });
-        } catch (e) {
-          window.location.reload();
-        }
-      } else {
-        window.location.reload();
-      }
-    });
-  }
+  var setupOverlayEl = document.getElementById('setupOverlay');
+  var btnStartEl = document.getElementById('btnStartGame');
+  var langBadgeEl = document.getElementById('langBadge');
+  var saveBadgeEl = document.getElementById('autoSaveBadge');
+  var btnQuickSaveEl = document.getElementById('btnQuickSave');
+  var canvasEl = document.getElementById('canvas');
 
   function setStatus(msg) {
     if (statusTextEl) statusTextEl.textContent = msg;
@@ -102,6 +147,35 @@
   function setProgress(pct, statsText) {
     if (progressFillEl) progressFillEl.style.width = Math.max(2, Math.min(100, pct)).toFixed(1) + '%';
     if (statsText && byteStatsEl) byteStatsEl.textContent = statsText;
+    if (!dataReady && btnStartEl) btnStartEl.textContent = '⏳ ' + Math.round(Math.max(0, Math.min(100, pct))) + '%';
+  }
+
+  // Persist /data to IndexedDB unless a sync is already in flight (either a manual
+  // FS.syncfs() or the IDBFS autoPersist queue), avoiding overlapping syncs.
+  function syncDataIfIdle(cb) {
+    var done = function (ok) { if (cb) cb(ok); };
+    if (typeof FS === 'undefined') { done(false); return; }
+    try {
+      var busy = (FS.syncFSRequests || 0) > 0;
+      try {
+        var mnt = FS.lookupPath('/data').node.mount;
+        if (mnt && mnt.idbPersistState) busy = true;
+      } catch (e) {}
+      if (busy) { done(false); return; }
+      FS.syncfs(false, function () { done(true); });
+    } catch (e) {
+      done(false);
+    }
+  }
+
+  // Like syncDataIfIdle, but retries while another sync is running so the latest
+  // state (e.g. a fresh auto-save) is guaranteed to reach IndexedDB.
+  function syncDataSoon(cb, tries) {
+    tries = tries === undefined ? 20 : tries;
+    syncDataIfIdle(function (ok) {
+      if (ok || tries <= 0) { if (cb) cb(ok); return; }
+      setTimeout(function () { syncDataSoon(cb, tries - 1); }, 250);
+    });
   }
 
   function writeSdlPalConfig(langFile) {
@@ -225,7 +299,7 @@
           bytes = await fetchChunkBytes(chunkMeta, { cache: 'reload' });
           digest = await sha256Hex(bytes);
           if (digest !== null && digest !== chunkMeta.sha256) {
-            throw new Error('Checksum mismatch for ' + chunkMeta.file + ' (please retry / Reset Cache)');
+            throw new Error('Checksum mismatch for ' + chunkMeta.file + ' (please reload the page)');
           }
         }
       }
@@ -273,22 +347,358 @@
     setProgress(100, 'Ready · Cached in IndexedDB');
   }
 
+  // ---------------------------------------------------------------------------
+  // Pre-launch setup screen: language is chosen once, before the engine starts.
+  // ---------------------------------------------------------------------------
+  function selectLang(lang) {
+    if (!LANGS[lang] || gameRunning) return;
+    currentLang = lang;
+    document.querySelectorAll('.lang-opt').forEach(function (b) {
+      var on = b.getAttribute('data-lang') === lang;
+      b.classList.toggle('selected', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    refreshChromeStrings();
+  }
+
+  function markDataReady() {
+    dataReady = true;
+    if (btnStartEl) {
+      btnStartEl.disabled = false;
+      btnStartEl.textContent = '▶ Start Game';
+      btnStartEl.focus();
+    }
+    setStatus('Ready — choose a language and press ▶ Start Game');
+  }
+
+  var starting = false;
+  function startGameFromSetup() {
+    if (!dataReady || gameRunning || starting) return;
+    starting = true;
+    try {
+      writeSdlPalConfig(currentLang);
+    } catch (e) {
+      console.error(e);
+    }
+    localStorage.setItem('pal98_lang', currentLang);
+    if (setupOverlayEl) setupOverlayEl.classList.add('hidden');
+    if (langBadgeEl) {
+      langBadgeEl.textContent = '🌐 ' + LANGS[currentLang].badge;
+      langBadgeEl.classList.add('locked');
+    }
+    unlockAudio();
+    syncDataIfIdle(function () { startSdlPalEngine(); });
+  }
+
+  if (btnStartEl) btnStartEl.addEventListener('click', startGameFromSetup);
+  document.querySelectorAll('.lang-opt').forEach(function (b) {
+    b.addEventListener('click', function () { selectLang(b.getAttribute('data-lang')); });
+    b.addEventListener('dblclick', function () { selectLang(b.getAttribute('data-lang')); startGameFromSetup(); });
+  });
+  window.addEventListener('keydown', function (e) {
+    if (gameRunning || !setupOverlayEl || setupOverlayEl.classList.contains('hidden')) return;
+    var order = Object.keys(LANGS);
+    var i = order.indexOf(currentLang);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { selectLang(order[(i + 1) % order.length]); e.preventDefault(); }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { selectLang(order[(i + order.length - 1) % order.length]); e.preventDefault(); }
+    else if (e.key === '1' || e.key === '2' || e.key === '3') { selectLang(order[parseInt(e.key, 10) - 1]); }
+    else if ((e.key === 'Enter' || e.key === ' ') && dataReady && !(document.activeElement && document.activeElement.tagName === 'BUTTON')) { startGameFromSetup(); e.preventDefault(); }
+  }, true);
+
+  var linkRedownload = document.getElementById('linkRedownload');
+  if (linkRedownload) {
+    linkRedownload.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (gameRunning) return;
+      if (!confirm('Re-download the game data chunks? Your .rpg save files are kept.')) return;
+      try { FS.unlink('/data/.pal98_version'); } catch (err) {}
+      FS.syncfs(false, function () { window.location.reload(); });
+    });
+  }
+
+  function refreshChromeStrings() {
+    var s = S();
+    if (btnQuickSaveEl) btnQuickSaveEl.textContent = s.quickSave;
+    if (saveBadgeEl && !saveBadgeEl.dataset.state) saveBadgeEl.textContent = s.autoIdle;
+    updateFullscreenButton();
+    renderInspector();
+  }
+
   function startSdlPalEngine() {
     if (gameRunning) return;
     gameRunning = true;
-    setStatus('Running (' + (currentLang === 'm_eng.slf' ? 'English v3.4' : currentLang) + ') — Use Arrow Keys, Enter/Space & Esc');
+    setStatus(fmt(S().running, { l: LANGS[currentLang].status }));
     setTimeout(function () {
       if (loaderPanelEl) loaderPanelEl.style.display = 'none';
     }, 900);
-    var canvas = document.getElementById('canvas');
-    if (canvas) canvas.focus();
+    if (btnQuickSaveEl) btnQuickSaveEl.disabled = false;
+    if (canvasEl) canvasEl.focus();
+    // Show the audio hint only if the browser still keeps WebAudio suspended.
+    setTimeout(function () {
+      var banner = document.getElementById('audioUnlockBanner');
+      var ctxs = trackedAudioContexts.slice();
+      if (Module.SDL3 && Module.SDL3.audioContext) ctxs.push(Module.SDL3.audioContext);
+      if (banner && ctxs.some(function (c) { return c && c.state === 'suspended'; })) banner.style.display = '';
+    }, 2500);
     var mainFunc = Module.cwrap('EMSCRIPTEN_main', 'number', ['number', 'number'], { async: true });
     mainFunc(0, 0);
   }
 
+  // ---------------------------------------------------------------------------
+  // Auto-save (every 5 minutes) + Quick Save, both to Slot 5 (/data/5.rpg).
+  // The engine performs the save itself (PAL_SaveGame) at the next safe point of
+  // its main loop: free exploration only, never inside a battle, menu, dialog or
+  // running script, so the file is identical to a manual System -> Save.
+  // ---------------------------------------------------------------------------
+  var lastSaveAt = 0;
+  var pendingSaveReason = null;
+
+  function setSaveBadge(state, text, title) {
+    if (!saveBadgeEl) return;
+    saveBadgeEl.dataset.state = state || '';
+    saveBadgeEl.className = 'save-badge' + (state ? ' ' + state : '');
+    saveBadgeEl.textContent = text;
+    if (title !== undefined) saveBadgeEl.title = title;
+  }
+
+  var sessionBackupDone = false;
+  var MAX_SLOT5_BACKUPS = 3;
+
+  // Before the first auto/quick save of a session, keep a copy of whatever Slot 5 holds unless the
+  // current game was itself loaded from Slot 5 (e.g. after an accidental "New Game").
+  function backupForeignSlot5() {
+    if (sessionBackupDone) return null;
+    sessionBackupDone = true;
+    if (lastSaveAt > 0 || webInfo(12) === AUTOSAVE_SLOT) return null;
+    try {
+      var bytes = FS.readFile('/data/' + AUTOSAVE_SLOT + '.rpg');
+      var d = new Date();
+      var stamp = d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2) + '-' +
+        ('0' + d.getHours()).slice(-2) + ('0' + d.getMinutes()).slice(-2) + ('0' + d.getSeconds()).slice(-2);
+      var name = AUTOSAVE_SLOT + '-backup-' + stamp + '.rpg';
+      FS.writeFile('/data/' + name, bytes, { encoding: 'binary' });
+      // Keep only the newest few backups.
+      var olds = Object.keys(FS.lookupPath('/data').node.contents).filter(function (n) {
+        return n.indexOf(AUTOSAVE_SLOT + '-backup-') === 0 && /\.rpg$/.test(n);
+      }).sort();
+      while (olds.length > MAX_SLOT5_BACKUPS) {
+        try { FS.unlink('/data/' + olds.shift()); } catch (e) {}
+      }
+      return name;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function requestWebSave(reason) {
+    if (!gameRunning || !window.Module || typeof Module._PAL_WebRequestSave !== 'function') {
+      if (reason === 'quick') setSaveBadge('warn', S().unavailable);
+      return false;
+    }
+    // Only save a game that is actually running (never from the title screen).
+    if (webInfo(11) !== 1) {
+      if (reason === 'quick') setSaveBadge('warn', S().notInGame);
+      return false;
+    }
+    var backup = backupForeignSlot5();
+    if (backup) {
+      setSaveBadge('info', S().autoIdle, fmt(S().backup, { f: backup }));
+    }
+    var r = Module._PAL_WebRequestSave(AUTOSAVE_SLOT);
+    if (r !== 0) return false;
+    if (pendingSaveReason !== 'quick') pendingSaveReason = reason;
+    if (reason === 'quick') {
+      // If the engine cannot save right away (battle, menu, dialog...), tell the player.
+      setTimeout(function () {
+        if (pendingSaveReason === 'quick') setSaveBadge('pending', S().pending);
+      }, 400);
+    }
+    return true;
+  }
+
+  Module_onPalSaved = function (slot, savedTimes) {
+    lastSaveAt = Date.now();
+    var reason = pendingSaveReason;
+    pendingSaveReason = null;
+    var t = hhmmss();
+    syncDataSoon(function () {
+      setSaveBadge('ok', fmt(reason === 'quick' ? S().quickSaved : S().saved, { t: t }),
+        'Slot ' + slot + ' · save #' + savedTimes + ' · /data/' + slot + '.rpg');
+    });
+  };
+
+  setInterval(function () {
+    if (gameRunning && document.visibilityState === 'visible') requestWebSave('auto');
+  }, AUTOSAVE_INTERVAL_MS);
+
+  if (btnQuickSaveEl) {
+    btnQuickSaveEl.addEventListener('click', function () {
+      requestWebSave('quick');
+      if (canvasEl) canvasEl.focus();
+    });
+  }
+
+  // Periodically sync IDBFS every 6 seconds so in-game saves (.rpg) are always persisted
+  setInterval(function () {
+    if (gameRunning) syncDataIfIdle();
+  }, 6000);
+
+  // Flush pending writes when the tab is hidden / closed (mobile app switch, tab close).
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden' && gameRunning) {
+      if (Date.now() - lastSaveAt > HIDDEN_SAVE_MIN_GAP_MS) requestWebSave('hidden');
+      syncDataIfIdle();
+    }
+  });
+  window.addEventListener('pagehide', function () {
+    if (gameRunning) syncDataIfIdle();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Shop & Equipment Inspector (driven by the engine's item-focus hook)
+  // ---------------------------------------------------------------------------
+  var inspState = { ctx: 0, item: 0, flags: 0 };
+  var inspRaf = 0;
+  var STAT_ATTR = { 17: 0, 18: 1, 19: 2, 20: 3, 21: 4 };
+  var PART_INDEX = { head: 0, body: 1, clothes: 2, weapon: 3, feet: 4, accessory: 5 };
+  var STAT_LABEL = {
+    en: { 17: 'STR', 18: 'INT', 19: 'DEF', 20: 'AGI', 21: 'LUK', 22: 'Poison Res', 23: 'Wind Res', 24: 'Thunder Res', 25: 'Water Res', 26: 'Fire Res', 27: 'Earth Res' },
+    chs: { 17: '武术', 18: '灵力', 19: '防御', 20: '身法', 21: '吉运', 22: '避毒率', 23: '避风率', 24: '避雷率', 25: '避水率', 26: '避火率', 27: '避土率' },
+    cht: { 17: '武術', 18: '靈力', 19: '防禦', 20: '身法', 21: '吉運', 22: '避毒率', 23: '避風率', 24: '避雷率', 25: '避水率', 26: '避火率', 27: '避土率' }
+  };
+
+  function webInfo(what, a, b) {
+    try {
+      if (window.Module && typeof Module._PAL_WebInfo === 'function') return Module._PAL_WebInfo(what, a || 0, b || 0);
+    } catch (e) {}
+    return -1;
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+  }
+
+  Module_onPalItemFocus = function (ctx, item, flags) {
+    inspState = { ctx: ctx, item: item, flags: flags };
+    if (!inspRaf) inspRaf = requestAnimationFrame(function () { inspRaf = 0; renderInspector(); });
+  };
+
+  function renderInspector() {
+    var box = document.getElementById('inspector');
+    if (!box) return;
+    var s = S();
+    var lang = LANGS[currentLang].code;
+    var items = window.PAL98_ITEMS || {};
+    var it = items[inspState.item];
+    if (!inspState.ctx || !it) {
+      box.className = 'inspector idle';
+      box.innerHTML = '<div class="insp-idle">🛒 ' + esc(s.inspIdle) + '</div>';
+      return;
+    }
+    var roleNames = (window.PAL98_ROLES || {})[lang] || [];
+    var name = it.n[lang] || it.n.en;
+    var html = '<div class="insp-head"><span class="insp-ctx">' + esc(s.ctx[inspState.ctx] || '') + '</span>' +
+      '<span class="insp-name">' + esc(name) + (lang !== 'en' && it.n.en ? ' <small>' + esc(it.n.en) + '</small>' : '') + '</span>';
+    if (it.part) html += '<span class="insp-chip part">' + esc(s.parts[it.part] || it.part) + '</span>';
+    if (inspState.ctx === 1) html += '<span class="insp-price">' + esc(s.price) + ' <b>' + it.p + '</b></span>';
+    else if (it.f & 32) html += '<span class="insp-price">' + esc(s.sell) + ' <b>' + Math.floor(it.p / 2) + '</b></span>';
+    html += '</div>';
+
+    if (it.e && it.e.length) {
+      html += '<div class="insp-stats">';
+      it.e.forEach(function (ev) {
+        var lbl = (STAT_LABEL[lang] || STAT_LABEL.en)[ev[0]] || ('#' + ev[0]);
+        var pct = ev[0] >= 22 ? '%' : '';
+        html += '<span class="insp-chip ' + (ev[1] >= 0 ? 'up' : 'down') + '">' + esc(lbl) + ' ' + (ev[1] >= 0 ? '+' : '') + ev[1] + pct + '</span>';
+      });
+      (it.s || []).forEach(function (sp) {
+        var t = sp === 'attack_all' ? s.hitsAll : sp === 'double_attack' ? s.twice : (sp && sp[0] === 'coop') ? s.combo : (sp && sp[0] === 'regen') ? s.regen : '';
+        if (t) html += '<span class="insp-chip special">' + esc(t) + '</span>';
+      });
+      html += '</div>';
+    }
+
+    if (it.r) {
+      var party = [];
+      var n = webInfo(4);
+      for (var i = 0; i < n && i < 6; i++) party.push(webInfo(5, i));
+      html += '<div class="insp-row"><span class="insp-label">' + esc(s.wearers) + ':</span>';
+      for (var r = 0; r < roleNames.length; r++) {
+        var can = it.r.indexOf(r) >= 0;
+        if (!can && party.indexOf(r) < 0) continue;
+        html += '<span class="insp-role ' + (can ? 'can' : 'cannot') + (party.indexOf(r) >= 0 ? ' inparty' : '') + '">' +
+          (can ? '✔ ' : '✖ ') + esc(roleNames[r]) + (can ? '' : ' (' + esc(s.cannot) + ')') + '</span>';
+      }
+      html += '</div>';
+      // Compare against what each party member currently wears in that slot.
+      var pi = PART_INDEX[it.part];
+      var rows = '';
+      party.forEach(function (role) {
+        if (it.r.indexOf(role) < 0 || pi === undefined) return;
+        var curItem = webInfo(6, role, 11 + pi);
+        var curName = curItem > 0 && items[curItem] ? (items[curItem].n[lang] || items[curItem].n.en) : s.nothing;
+        var deltas = [];
+        it.e.forEach(function (ev) {
+          if (STAT_ATTR[ev[0]] === undefined) return;
+          var now = webInfo(9, role, STAT_ATTR[ev[0]]);
+          var curEff = webInfo(7, role, pi * 100 + ev[0]);
+          if (now < 0) return;
+          var after = now - curEff + ev[1];
+          var d = after - now;
+          deltas.push('<span class="cmp ' + (d > 0 ? 'up' : d < 0 ? 'down' : 'same') + '">' +
+            esc((STAT_LABEL[lang] || STAT_LABEL.en)[ev[0]]) + ' ' + now + '→' + after + ' (' + (d >= 0 ? '+' : '') + d + ')</span>');
+        });
+        // Stats the current item gives that the new one does not.
+        if (curItem > 0 && items[curItem] && items[curItem].e) {
+          items[curItem].e.forEach(function (ev) {
+            if (STAT_ATTR[ev[0]] === undefined) return;
+            if (it.e.some(function (x) { return x[0] === ev[0]; })) return;
+            var now = webInfo(9, role, STAT_ATTR[ev[0]]);
+            var curEff = webInfo(7, role, pi * 100 + ev[0]);
+            if (now < 0 || !curEff) return;
+            deltas.push('<span class="cmp ' + (curEff > 0 ? 'down' : 'up') + '">' +
+              esc((STAT_LABEL[lang] || STAT_LABEL.en)[ev[0]]) + ' ' + now + '→' + (now - curEff) + ' (' + (curEff > 0 ? '-' : '+') + Math.abs(curEff) + ')</span>');
+          });
+        }
+        rows += '<div class="insp-cmp"><b>' + esc(roleNames[role] || role) + '</b> <span class="muted">' + esc(s.replaces) + ' ' +
+          esc(curName) + '</span> ' + deltas.join(' ') + '</div>';
+      });
+      if (rows) html += rows;
+    }
+
+    var desc = it.d[lang] || it.d.en;
+    if (desc && desc.length) {
+      html += '<div class="insp-desc">' + desc.map(esc).join('<br>') + '</div>';
+    }
+
+    var have = webInfo(8, inspState.item);
+    var cash = webInfo(1);
+    var foot = [];
+    if (have >= 0) foot.push(esc(s.have) + ' <b>' + have + '</b>');
+    if (cash >= 0) foot.push(esc(s.cash) + ' <b>' + cash + '</b>');
+    if (inspState.ctx === 1 && cash >= 0 && it.p > 0) foot.push(esc(s.canBuy) + ' <b>' + Math.max(0, Math.min(99 - Math.max(0, have), Math.floor(cash / it.p))) + '</b>');
+    if (foot.length) html += '<div class="insp-foot">' + foot.join(' · ') + '</div>';
+    if (inspState.ctx === 1) html += '<div class="insp-tip">' + esc(s.inspShopTip) + '</div>';
+
+    box.className = 'inspector';
+    box.innerHTML = html;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Emscripten Module
+  // ---------------------------------------------------------------------------
+  var Module_onPalSaved, Module_onPalItemFocus;
+
   window.Module = {
     preRun: [],
     postRun: [],
+    // Keep the WebGL drawing buffer at 640x400 and let CSS do all scaling; SDL3
+    // never sees the (CSS-only) fullscreen or window resizes (see sdlpal.js patch).
+    locateFile: function (path, prefix) {
+      return (prefix || '') + path + (/\.wasm$/.test(path) ? '?v=' + encodeURIComponent(DATA_VERSION) : '');
+    },
+    pal98CanvasLock: [CANVAS_W, CANVAS_H],
+    pal98CssFullscreen: true,
     print: function (text) {
       console.log('[SDLPal]', text);
     },
@@ -296,17 +706,18 @@
       console.warn('[SDLPal]', text);
     },
     canvas: (function () {
-      var canvas = document.getElementById('canvas');
-      canvas.addEventListener('webglcontextlost', function (e) {
+      canvasEl.addEventListener('webglcontextlost', function (e) {
         e.preventDefault();
-        window.location.reload();
+        syncDataIfIdle(function () { window.location.reload(); });
       }, false);
-      canvas.addEventListener('click', function () {
-        canvas.focus();
+      canvasEl.addEventListener('click', function () {
+        canvasEl.focus();
         unlockAudio();
       });
-      return canvas;
+      return canvasEl;
     })(),
+    onPalSaved: function (slot, savedTimes) { Module_onPalSaved(slot, savedTimes); },
+    onPalItemFocus: function (ctx, item, flags) { Module_onPalItemFocus(ctx, item, flags); },
     setStatus: function (text) {
       if (text) setStatus(text);
     },
@@ -323,7 +734,6 @@
       FS.syncfs(true, async function () {
         try {
           if (hasValidCachedData()) {
-            writeSdlPalConfig(currentLang);
             for (var i = 0; i < 8; i++) {
               var chip = document.getElementById('chip-' + i);
               if (chip) {
@@ -332,48 +742,64 @@
               }
             }
             setProgress(100, 'Cached in IndexedDB (0 MB download)');
-            FS.syncfs(false, function () {
-              startSdlPalEngine();
-            });
           } else {
             await downloadAndUnpackChunks();
-            startSdlPalEngine();
           }
+          markDataReady();
         } catch (err) {
           console.error('Failed to initialize PAL98 data:', err);
           setStatus('Error loading chunks: ' + err.message);
+          if (btnStartEl) btnStartEl.textContent = '⚠ ' + err.message;
         }
       });
     }
   };
+  Module_onPalSaved = Module_onPalSaved || function () {};
 
-  // Periodically sync IDBFS every 6 seconds so in-game saves (.rpg) are always persisted
-  setInterval(function () {
-    if (gameRunning) syncDataIfIdle();
-  }, 6000);
+  // ---------------------------------------------------------------------------
+  // Fullscreen (CSS-only on #canvasWrap; the canvas buffer stays 640x400)
+  // ---------------------------------------------------------------------------
+  function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
 
-  // Flush pending writes when the tab is hidden / closed (mobile app switch, tab close).
-  document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'hidden' && gameRunning) syncDataIfIdle();
-  });
-  window.addEventListener('pagehide', function () {
-    if (gameRunning) syncDataIfIdle();
-  });
+  function updateFullscreenButton() {
+    var b = document.getElementById('btnFullscreen');
+    if (b) b.textContent = isFullscreen() ? S().fsExit : S().fsEnter;
+  }
 
-  // Toolbar Actions
+  function onFullscreenChange() {
+    if (canvasEl) {
+      if (canvasEl.width !== CANVAS_W) canvasEl.width = CANVAS_W;
+      if (canvasEl.height !== CANVAS_H) canvasEl.height = CANVAS_H;
+      canvasEl.style.removeProperty('width');
+      canvasEl.style.removeProperty('height');
+      canvasEl.style.removeProperty('padding');
+      canvasEl.focus();
+    }
+    document.body.classList.toggle('is-fullscreen', isFullscreen());
+    updateFullscreenButton();
+  }
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+
   var btnFullscreen = document.getElementById('btnFullscreen');
   if (btnFullscreen) {
     btnFullscreen.addEventListener('click', function () {
-      var wrap = document.getElementById('canvasWrap') || document.getElementById('canvas');
-      if (!document.fullscreenElement) {
-        if (wrap.requestFullscreen) wrap.requestFullscreen();
+      var wrap = document.getElementById('canvasWrap');
+      if (!isFullscreen()) {
+        if (wrap.requestFullscreen) wrap.requestFullscreen().catch(function () {});
         else if (wrap.webkitRequestFullscreen) wrap.webkitRequestFullscreen();
       } else {
-        if (document.exitFullscreen) document.exitFullscreen();
+        if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
       }
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Save export / import
+  // ---------------------------------------------------------------------------
   var btnExportSave = document.getElementById('btnExportSave');
   if (btnExportSave) {
     btnExportSave.addEventListener('click', function () {
@@ -510,20 +936,9 @@
     });
   }
 
-  var btnReinstall = document.getElementById('btnReinstall');
-  if (btnReinstall) {
-    btnReinstall.addEventListener('click', function () {
-      if (!confirm('Re-download game chunks (your .rpg save files will be preserved)?')) return;
-      try {
-        FS.unlink('/data/.pal98_version');
-      } catch (e) {}
-      FS.syncfs(false, function () {
-        window.location.reload();
-      });
-    });
-  }
-
+  // ---------------------------------------------------------------------------
   // Virtual On-Screen Gamepad buttons -> dispatch genuine SDL2 KeyboardEvents
+  // ---------------------------------------------------------------------------
   function sendSyntheticKey(type, key, keyCode) {
     var evInit = {
       key: key,
@@ -538,8 +953,7 @@
     Object.defineProperty(ev, 'which', { get: function () { return keyCode; } });
     window.dispatchEvent(ev);
     document.dispatchEvent(ev);
-    var canvas = document.getElementById('canvas');
-    if (canvas) canvas.dispatchEvent(ev);
+    if (canvasEl) canvasEl.dispatchEvent(ev);
   }
 
   document.querySelectorAll('.key-btn').forEach(function (btn) {
@@ -567,4 +981,21 @@
     btn.addEventListener('touchstart', press, { passive: false });
     btn.addEventListener('touchend', release, { passive: false });
   });
+
+  // Initial state of the start screen.
+  selectLang(currentLang);
+  if (langBadgeEl) langBadgeEl.textContent = '🌐 ' + LANGS[currentLang].badge;
+  refreshChromeStrings();
+
+  // Test/automation hooks (read-only helpers + the save request).
+  window.PAL98 = {
+    version: DATA_VERSION,
+    requestSave: requestWebSave,
+    info: webInfo,
+    state: function () {
+      return { gameRunning: gameRunning, dataReady: dataReady, lang: currentLang, lastSaveAt: lastSaveAt, pending: pendingSaveReason, inspector: inspState };
+    },
+    start: startGameFromSetup,
+    selectLang: selectLang
+  };
 })();
