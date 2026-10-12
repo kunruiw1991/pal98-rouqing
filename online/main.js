@@ -1,8 +1,11 @@
 (function () {
-  var DATA_VERSION = 'pal98-eng-v3.3-dos';
+  var DATA_VERSION = 'pal98-eng-v3.4-patched';
   var DEFAULT_LANG = 'm_eng.slf';
   var currentLang = localStorage.getItem('pal98_lang') || DEFAULT_LANG;
   var gameRunning = false;
+
+  // SAVEDGAME_DOS layout (sdlpal global.c): fixed part = 12864 bytes, then EVENTOBJECT[n] (32 bytes each).
+  var RPG_MIN_SIZE = 12864;
 
   // Track all WebAudio contexts so we can resume them on first user click/keydown on macOS
   var trackedAudioContexts = [];
@@ -48,10 +51,32 @@
   var loaderPanelEl = document.getElementById('loaderPanel');
   var langSelectEl = document.getElementById('langSelect');
 
+  // Persist /data to IndexedDB unless a sync is already in flight (either a manual
+  // FS.syncfs() or the IDBFS autoPersist queue), avoiding overlapping syncs.
+  function syncDataIfIdle(cb) {
+    var done = function () { if (cb) cb(); };
+    if (typeof FS === 'undefined') { done(); return; }
+    try {
+      var busy = (FS.syncFSRequests || 0) > 0;
+      try {
+        var mnt = FS.lookupPath('/data').node.mount;
+        if (mnt && mnt.idbPersistState) busy = true;
+      } catch (e) {}
+      if (busy) { done(); return; }
+      FS.syncfs(false, function () { done(); });
+    } catch (e) {
+      done();
+    }
+  }
+
   if (langSelectEl) {
     langSelectEl.value = currentLang;
     langSelectEl.addEventListener('change', function () {
       var newLang = langSelectEl.value;
+      if (gameRunning && !confirm('Switching language will reload the game. Any unsaved progress since your last in-game save will be lost. Continue?')) {
+        langSelectEl.value = currentLang;
+        return;
+      }
       localStorage.setItem('pal98_lang', newLang);
       currentLang = newLang;
       if (typeof FS !== 'undefined') {
@@ -129,11 +154,13 @@
 
   async function downloadAndUnpackChunks() {
     setStatus('Fetching multi-part manifest...');
-    var manResp = await fetch('chunks/manifest.json');
+    var manResp = await fetch('chunks/manifest.json', { cache: 'no-cache' });
     if (!manResp.ok) throw new Error('Failed to load chunks/manifest.json (' + manResp.status + ')');
     var manifest = await manResp.json();
     var totalBytes = manifest.total_size;
     var chunkBytesLoaded = new Array(manifest.chunks.length).fill(0);
+    // Cache-bust chunk URLs per data version so browsers never mix old and new parts.
+    var bust = '?v=' + encodeURIComponent(manifest.version || DATA_VERSION);
 
     function updateOverallProgress() {
       var loaded = chunkBytesLoaded.reduce(function (a, b) { return a + b; }, 0);
@@ -145,16 +172,18 @@
 
     setStatus('Downloading ' + manifest.chunks.length + ' game data chunks in parallel...');
 
-    var chunkBuffers = await Promise.all(manifest.chunks.map(async function (chunkMeta) {
-      var idx = chunkMeta.index;
-      var chip = document.getElementById('chip-' + idx);
-      if (chip) {
-        chip.className = 'chunk-chip loading';
-        chip.textContent = 'Part 0' + idx + ' ⬇';
-      }
-      var resp = await fetch(chunkMeta.file);
-      if (!resp.ok) throw new Error('Failed to fetch ' + chunkMeta.file);
+    async function sha256Hex(bytes) {
+      if (!(window.crypto && crypto.subtle && crypto.subtle.digest)) return null;
+      var digest = await crypto.subtle.digest('SHA-256', bytes);
+      return Array.prototype.map.call(new Uint8Array(digest), function (b) {
+        return ('0' + b.toString(16)).slice(-2);
+      }).join('');
+    }
 
+    async function fetchChunkBytes(chunkMeta, fetchOpts) {
+      var idx = chunkMeta.index;
+      var resp = await fetch(chunkMeta.file + bust, fetchOpts);
+      if (!resp.ok) throw new Error('Failed to fetch ' + chunkMeta.file);
       if (resp.body && resp.body.getReader) {
         var reader = resp.body.getReader();
         var parts = [];
@@ -173,25 +202,42 @@
           out.set(parts[i], pos);
           pos += parts[i].byteLength;
         }
-        if (chip) {
-          chip.className = 'chunk-chip done';
-          chip.textContent = 'Part 0' + idx + ' ✓';
-        }
         return out;
-      } else {
-        var ab = await resp.arrayBuffer();
-        chunkBytesLoaded[idx] = ab.byteLength;
-        updateOverallProgress();
-        if (chip) {
-          chip.className = 'chunk-chip done';
-          chip.textContent = 'Part 0' + idx + ' ✓';
-        }
-        return new Uint8Array(ab);
       }
+      var ab = await resp.arrayBuffer();
+      chunkBytesLoaded[idx] = ab.byteLength;
+      updateOverallProgress();
+      return new Uint8Array(ab);
+    }
+
+    var chunkBuffers = await Promise.all(manifest.chunks.map(async function (chunkMeta) {
+      var idx = chunkMeta.index;
+      var chip = document.getElementById('chip-' + idx);
+      if (chip) {
+        chip.className = 'chunk-chip loading';
+        chip.textContent = 'Part 0' + idx + ' ⬇';
+      }
+      var bytes = await fetchChunkBytes(chunkMeta, undefined);
+      // Integrity check against the manifest; retry once bypassing any stale HTTP cache.
+      if (chunkMeta.sha256) {
+        var digest = await sha256Hex(bytes);
+        if (digest !== null && (digest !== chunkMeta.sha256 || bytes.byteLength !== chunkMeta.size)) {
+          bytes = await fetchChunkBytes(chunkMeta, { cache: 'reload' });
+          digest = await sha256Hex(bytes);
+          if (digest !== null && digest !== chunkMeta.sha256) {
+            throw new Error('Checksum mismatch for ' + chunkMeta.file + ' (please retry / Reset Cache)');
+          }
+        }
+      }
+      if (chip) {
+        chip.className = 'chunk-chip done';
+        chip.textContent = 'Part 0' + idx + ' ✓';
+      }
+      return bytes;
     }));
 
-    setStatus('Reassembling 8 chunks & unpacking into WebAssembly filesystem...');
-    setProgress(88, 'Unpacking 25 files...');
+    setStatus('Reassembling ' + chunkBuffers.length + ' chunks & unpacking into WebAssembly filesystem...');
+    setProgress(88, 'Unpacking game files...');
 
     var merged = new Uint8Array(totalBytes);
     var offset = 0;
@@ -208,6 +254,7 @@
       }
     });
 
+    // Only game data files are overwritten; existing /data/*.rpg saves are preserved.
     for (var j = 0; j < entries.length; j++) {
       var item = entries[j];
       var arr = await item.entry.async('uint8array');
@@ -229,7 +276,7 @@
   function startSdlPalEngine() {
     if (gameRunning) return;
     gameRunning = true;
-    setStatus('Running (' + (currentLang === 'm_eng.slf' ? 'English v3.3' : currentLang) + ') — Use Arrow Keys, Enter/Space & Esc');
+    setStatus('Running (' + (currentLang === 'm_eng.slf' ? 'English v3.4' : currentLang) + ') — Use Arrow Keys, Enter/Space & Esc');
     setTimeout(function () {
       if (loaderPanelEl) loaderPanelEl.style.display = 'none';
     }, 900);
@@ -302,12 +349,16 @@
 
   // Periodically sync IDBFS every 6 seconds so in-game saves (.rpg) are always persisted
   setInterval(function () {
-    if (gameRunning && typeof FS !== 'undefined') {
-      try {
-        FS.syncfs(false, function () {});
-      } catch (e) {}
-    }
+    if (gameRunning) syncDataIfIdle();
   }, 6000);
+
+  // Flush pending writes when the tab is hidden / closed (mobile app switch, tab close).
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden' && gameRunning) syncDataIfIdle();
+  });
+  window.addEventListener('pagehide', function () {
+    if (gameRunning) syncDataIfIdle();
+  });
 
   // Toolbar Actions
   var btnFullscreen = document.getElementById('btnFullscreen');
@@ -349,11 +400,88 @@
     });
   }
 
+  // Number of event-script entries in the loaded sss.mkf (MKF chunk #4, 8 bytes per entry).
+  function getScriptEntryCount() {
+    try {
+      var sss = FS.readFile('/data/sss.mkf');
+      var dv = new DataView(sss.buffer, sss.byteOffset, sss.byteLength);
+      var off4 = dv.getUint32(4 * 4, true);
+      var off5 = dv.getUint32(5 * 4, true);
+      return Math.floor((off5 - off4) / 8);
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  // Validate a DOS-format .rpg and zero any script pointer that is outside the loaded
+  // script table (e.g. saves made with a different sss.mkf). Returns {ok, bytes, fixed, reason}.
+  function sanitizeRpg(bytes) {
+    if (!bytes || bytes.length < RPG_MIN_SIZE) {
+      return { ok: false, reason: 'file is ' + (bytes ? bytes.length : 0) + ' bytes (a valid save is at least ' + RPG_MIN_SIZE + ' bytes)' };
+    }
+    if ((bytes.length - RPG_MIN_SIZE) % 32 !== 0) {
+      return { ok: false, reason: 'unexpected size ' + bytes.length + ' bytes (not a DOS-format PAL save)' };
+    }
+    var out = new Uint8Array(bytes.length);
+    out.set(bytes);
+    var nScript = getScriptEntryCount();
+    var fixed = 0;
+    if (nScript > 0) {
+      var dv = new DataView(out.buffer);
+      var fix = function (off) {
+        if (dv.getUint16(off, true) >= nScript) {
+          dv.setUint16(off, 0, true);
+          fixed++;
+        }
+      };
+      var i;
+      // Poison scripts: POISONSTATUS[16][5] {wPoisonID, wPoisonScript} at 1408.
+      for (i = 0; i < 16 * 5; i++) fix(1408 + i * 4 + 2);
+      // Scene enter/teleport scripts: SCENE[300] {wMapNum, wScriptOnEnter, wScriptOnTeleport, wEventObjectIndex} at 3264.
+      for (i = 0; i < 300; i++) { fix(3264 + i * 8 + 2); fix(3264 + i * 8 + 4); }
+      // Object scripts: OBJECT_DOS[600] (6 words) at 5664, script words 2..4.
+      for (i = 0; i < 600; i++) { fix(5664 + i * 12 + 4); fix(5664 + i * 12 + 6); fix(5664 + i * 12 + 8); }
+      // Event objects: EVENTOBJECT[n] at 12864, wTriggerScript @+8, wAutoScript @+10.
+      var nEvt = (out.length - RPG_MIN_SIZE) / 32;
+      for (i = 0; i < nEvt; i++) { fix(RPG_MIN_SIZE + i * 32 + 8); fix(RPG_MIN_SIZE + i * 32 + 10); }
+    }
+    return { ok: true, bytes: out, fixed: fixed };
+  }
+
+  function slotTaken(slot) {
+    try { FS.stat('/data/' + slot + '.rpg'); return true; } catch (e) { return false; }
+  }
+
+  // Map an imported file name to a 1..5 save slot (the in-game Load menu only shows 1.rpg..5.rpg).
+  function chooseSlot(fileName) {
+    var m = /^([1-5])\.rpg$/i.exec(fileName);
+    if (m) return parseInt(m[1], 10);
+    var def = 1;
+    for (var s = 1; s <= 5; s++) { if (!slotTaken(s)) { def = s; break; } }
+    var ans = prompt('"' + fileName + '" is not named 1.rpg-5.rpg, so the in-game Load menu would not show it.\n' +
+                     'Import it into which save slot (1-5)? Any existing save in that slot will be overwritten.', String(def));
+    if (ans === null) return 0;
+    var n = parseInt(ans, 10);
+    return (n >= 1 && n <= 5) ? n : 0;
+  }
+
   var inputImportSave = document.getElementById('inputImportSave');
   if (inputImportSave) {
     inputImportSave.addEventListener('change', async function () {
       if (!inputImportSave.files || !inputImportSave.files.length) return;
-      var imported = 0;
+      var imported = [];
+      var skipped = [];
+      var fixedTotal = 0;
+      var handle = function (name, bytes) {
+        var base = name.split('/').pop();
+        var res = sanitizeRpg(bytes);
+        if (!res.ok) { skipped.push(base + ' (' + res.reason + ')'); return; }
+        var slot = chooseSlot(base);
+        if (!slot) { skipped.push(base + ' (no slot chosen)'); return; }
+        FS.writeFile('/data/' + slot + '.rpg', res.bytes, { encoding: 'binary' });
+        fixedTotal += res.fixed;
+        imported.push(base + ' -> slot ' + slot);
+      };
       for (var i = 0; i < inputImportSave.files.length; i++) {
         var f = inputImportSave.files[i];
         if (f.name.toLowerCase().endsWith('.zip')) {
@@ -361,21 +489,23 @@
           var names = Object.keys(z.files);
           for (var k = 0; k < names.length; k++) {
             var zn = names[k];
-            if (zn.toLowerCase().endsWith('.rpg') && !z.files[zn].dir) {
-              var bytes = await z.files[zn].async('uint8array');
-              var base = zn.split('/').pop().toLowerCase();
-              FS.writeFile('/data/' + base, bytes, { encoding: 'binary' });
-              imported++;
+            if (zn.toLowerCase().endsWith('.rpg') && !z.files[zn].dir && !zn.includes('__MACOSX')) {
+              handle(zn, await z.files[zn].async('uint8array'));
             }
           }
         } else if (f.name.toLowerCase().endsWith('.rpg')) {
-          var ab = await f.arrayBuffer();
-          FS.writeFile('/data/' + f.name.toLowerCase(), new Uint8Array(ab), { encoding: 'binary' });
-          imported++;
+          handle(f.name, new Uint8Array(await f.arrayBuffer()));
+        } else {
+          skipped.push(f.name + ' (not a .rpg or .zip file)');
         }
       }
+      inputImportSave.value = '';
       FS.syncfs(false, function () {
-        alert('Imported ' + imported + ' save file(s) (.rpg) into /data! You can now Load Game from the menu.');
+        var msg = 'Imported ' + imported.length + ' save file(s):\n' + (imported.join('\n') || '(none)');
+        if (fixedTotal) msg += '\n\nRepaired ' + fixedTotal + ' out-of-range script pointer(s) for compatibility with this build.';
+        if (skipped.length) msg += '\n\nSkipped:\n' + skipped.join('\n');
+        msg += '\n\nUse Load Game (title screen) or System -> Load in-game.';
+        alert(msg);
       });
     });
   }

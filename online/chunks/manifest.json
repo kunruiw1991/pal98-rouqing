@@ -1,20 +1,20 @@
 {
-  "version": "pal98-eng-v3.3-dos",
-  "total_size": 17759414,
-  "sha256": "99b02d73d0a30bf2b3f144868ebdd5ae8eff56dc36a164a494e8ddfffb95cfef",
+  "version": "pal98-eng-v3.4-patched",
+  "total_size": 17760449,
+  "sha256": "57fdecb12439a8853f683396a5739179efb11c5b65235b922cf50e7b30460b0d",
   "chunk_count": 8,
   "chunks": [
     {
       "index": 0,
       "file": "chunks/pal98_data.part00.bin",
       "size": 2457600,
-      "sha256": "106e2a2c02aeb02e132794a60a89ad61fd798d9abacceb3033e8a217c5c255ae"
+      "sha256": "a6cea29c81dbdb9518c6f9380a325b26afffbd10e1a512bf208f45cf38162ce7"
     },
     {
       "index": 1,
       "file": "chunks/pal98_data.part01.bin",
       "size": 2457600,
-      "sha256": "f6e9caf64efd5f8ad84f5140cacd91e72c6e1643ae8418c642ab82efbce8cdb0"
+      "sha256": "303088204a6fa2f4e694e7a9219fe6ded0b16b4fd33dfc35382df4a6f0a93be4"
     },
     {
       "index": 2,
@@ -26,37 +26,37 @@
       "index": 3,
       "file": "chunks/pal98_data.part03.bin",
       "size": 2457600,
-      "sha256": "ca720b20c361ea79db59da6c9ef7c71f5a6f0698ff88a3acdfd61d29622eec1e"
+      "sha256": "3e4b6d60ca4deac9e5b9e4accc02f0f6d7635a7529afdd4f64d7e99907ce63f6"
     },
     {
       "index": 4,
       "file": "chunks/pal98_data.part04.bin",
       "size": 2457600,
-      "sha256": "bd4ce31bef35cb3e5bf2811e18b4aaac11d0fc12aa997ffeefb5047506b6124c"
+      "sha256": "e932cc073ecac052c387e3c2c8ff7a90beaf6342796ba8ec878bd3e1560e53dd"
     },
     {
       "index": 5,
       "file": "chunks/pal98_data.part05.bin",
       "size": 2457600,
-      "sha256": "6ff0d2eb7ac804e55ff99620174d3a11b07217da54df8f3798c652b7ea8f3434"
+      "sha256": "872a2811ea58e7d97ab24836a71375aa490421f75aa26a7eee8a4d84350b5049"
     },
     {
       "index": 6,
       "file": "chunks/pal98_data.part06.bin",
       "size": 2457600,
-      "sha256": "a142b10069180f1ab91935c602890dac8d68fc73737f9e6db60bdacaad21280d"
+      "sha256": "fdb7d92fbba1725ab82ca9bc279092625c4215dba9cd8e4db7d62808397ff9cc"
     },
     {
       "index": 7,
       "file": "chunks/pal98_data.part07.bin",
-      "size": 556214,
-      "sha256": "b760b0904933892728f82261314439579c57bc25dc0ac8c5d2e3f197c2ecfd26"
+      "size": 557249,
+      "sha256": "d340f49fc484dc2b0a749fb4f88fc1851c62fe3d67cddb3dde013c772399834b"
     }
   ],
   "languages": [
     {
       "id": "m_eng.slf",
-      "label": "English (Fan Translation v3.3)",
+      "label": "English (Fan Translation v3.3 + v3.4 fixes)",
       "use_iso_font": 1
     },
     {
