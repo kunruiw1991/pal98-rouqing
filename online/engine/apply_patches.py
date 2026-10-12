@@ -378,4 +378,9 @@ edit('emscripten/Makefile',
      "-s EXPORTED_FUNCTIONS=\"['_EMSCRIPTEN_main']\"",
      "-s EXPORTED_FUNCTIONS=\"['_EMSCRIPTEN_main','_PAL_WebRequestSave','_PAL_WebInfo']\"")
 
+# 7. global.c: zero the save buffer so identical game states give byte-identical .rpg
+#    files (rgwReserved2 and padding were uninitialised malloc memory).
+edit('global.c', 'SAVEDGAME_DOS   *s = (SAVEDGAME_DOS*)malloc(sizeof(SAVEDGAME_DOS));',
+     'SAVEDGAME_DOS   *s = (SAVEDGAME_DOS*)calloc(1, sizeof(SAVEDGAME_DOS));', count=2)
+
 print('patched OK')

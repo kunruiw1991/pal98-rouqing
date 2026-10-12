@@ -2,6 +2,8 @@
   'use strict';
 
   var DATA_VERSION = 'pal98-eng-v3.5';
+  // Cache key for sdlpal.wasm (must change whenever the engine binary changes).
+  var ENGINE_VERSION = 'pal98-eng-v3.5.2';
   var DEFAULT_LANG = 'm_eng.slf';
   var LANGS = {
     'm_eng.slf': { code: 'en', badge: '🇬🇧 English (v3.5)', status: 'English v3.5' },
@@ -34,6 +36,7 @@
       pending: '⏳ Saving to Slot 5 as soon as you are back to exploring…',
       unavailable: 'Auto-save unavailable',
       notInGame: 'Start or load a game first',
+      backupShort: 'old Slot 5 backed up',
       backup: 'The previous Slot 5 save was kept as {f} (included in 💾 Export Saves; import it to restore).',
       fsEnter: '⛶ Fullscreen', fsExit: '✕ Exit Fullscreen',
       running: 'Running ({l}) — Arrow Keys, Enter/Space & Esc',
@@ -54,6 +57,7 @@
       pending: '⏳ 回到自由行走状态后立即存入进度五…',
       unavailable: '自动存档不可用',
       notInGame: '请先开始或读取游戏',
+      backupShort: '原进度五已备份',
       backup: '原进度五已备份为 {f}（可用 💾 Export Saves 导出）。',
       fsEnter: '⛶ 全屏', fsExit: '✕ 退出全屏',
       running: '运行中（{l}）— 方向键、Enter/空格、Esc',
@@ -74,6 +78,7 @@
       pending: '⏳ 回到自由行走狀態後立即存入進度五…',
       unavailable: '自動存檔不可用',
       notInGame: '請先開始或讀取遊戲',
+      backupShort: '原進度五已備份',
       backup: '原進度五已備份為 {f}（可用 💾 Export Saves 匯出）。',
       fsEnter: '⛶ 全螢幕', fsExit: '✕ 退出全螢幕',
       running: '執行中（{l}）— 方向鍵、Enter/空白鍵、Esc',
@@ -452,6 +457,7 @@
   // ---------------------------------------------------------------------------
   var lastSaveAt = 0;
   var pendingSaveReason = null;
+  var backupShown = false;
 
   function setSaveBadge(state, text, title) {
     if (!saveBadgeEl) return;
@@ -462,6 +468,7 @@
   }
 
   var sessionBackupDone = false;
+  var lastBackupName = null;
   var MAX_SLOT5_BACKUPS = 3;
 
   // Before the first auto/quick save of a session, keep a copy of whatever Slot 5 holds unless the
@@ -502,6 +509,7 @@
     }
     var backup = backupForeignSlot5();
     if (backup) {
+      lastBackupName = backup;
       setSaveBadge('info', S().autoIdle, fmt(S().backup, { f: backup }));
     }
     var r = Module._PAL_WebRequestSave(AUTOSAVE_SLOT);
@@ -521,9 +529,12 @@
     var reason = pendingSaveReason;
     pendingSaveReason = null;
     var t = hhmmss();
+    var note = lastBackupName ? fmt(S().backup, { f: lastBackupName }) : '';
+    var firstAfterBackup = !!lastBackupName && !backupShown;
+    backupShown = backupShown || !!lastBackupName;
     syncDataSoon(function () {
-      setSaveBadge('ok', fmt(reason === 'quick' ? S().quickSaved : S().saved, { t: t }),
-        'Slot ' + slot + ' · save #' + savedTimes + ' · /data/' + slot + '.rpg');
+      setSaveBadge('ok', fmt(reason === 'quick' ? S().quickSaved : S().saved, { t: t }) + (firstAfterBackup ? ' · ' + S().backupShort : ''),
+        'Slot ' + slot + ' · save #' + savedTimes + ' · /data/' + slot + '.rpg' + (note ? '\n' + note : ''));
     });
   };
 
@@ -699,7 +710,7 @@
     // Keep the WebGL drawing buffer at 640x400 and let CSS do all scaling; SDL3
     // never sees the (CSS-only) fullscreen or window resizes (see sdlpal.js patch).
     locateFile: function (path, prefix) {
-      return (prefix || '') + path + (/\.wasm$/.test(path) ? '?v=' + encodeURIComponent(DATA_VERSION) : '');
+      return (prefix || '') + path + (/\.wasm$/.test(path) ? '?v=' + encodeURIComponent(ENGINE_VERSION) : '');
     },
     pal98CanvasLock: [CANVAS_W, CANVAS_H],
     pal98CssFullscreen: true,

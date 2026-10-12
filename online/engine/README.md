@@ -17,6 +17,7 @@ Built without the patches, this setup reproduces the official release wasm: same
 | `uigame.c` | Shop: `Enter` opens an item card with the full description (stats + who can equip), price, owned count and cash, plus a quantity selector (`◄ ►` ±1, `▲ ▼` ±10). Items you can't afford show "No money" / "Bag full" instead of doing nothing. The buy menu also reports the highlighted item to the page. |
 | `itemmenu.c` | Reports the highlighted inventory item to the page (Shop & Equipment Inspector). |
 | `emscripten/Makefile` | Exports `_PAL_WebRequestSave` and `_PAL_WebInfo`. |
+| `global.c` | `PAL_SaveGame_DOS` zeroes its buffer (`calloc`), so identical game states give byte-identical `.rpg` files. `rgwReserved2` used to be uninitialised memory. |
 
 `patch_sdlpal_js.py` post-processes the generated `sdlpal.js`. SDL3 never registers its `fullscreenchange` or `resize` listeners, and the game canvas buffer stays 640×400. Fullscreen is CSS-only. This fixes the zoom/crop that persisted after `Esc`, caused by `SDL_UpdateFullscreenMode(commit=false)` resizing SDL's window to the screen size.
 
