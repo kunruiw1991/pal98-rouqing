@@ -609,51 +609,39 @@
 
     <aside class="side-panel">
       <div class="side-section">
-        <h3>✨ macOS Browser Edition <span class="badge">Safe &amp; Verified</span></h3>
-        <div class="guide-box">
-          Runs 100% inside your browser sandbox via WebAssembly. Game data is split into <strong>8 small chunks (2.34 MB each)</strong> and cached in browser <code>IndexedDB</code> so future visits load instantaneously.
-        </div>
-      </div>
-
-      <div class="side-section">
-        <h3>⌨️ Keyboard &amp; Battle Shortcuts</h3>
+        <h3>⌨️ Field &amp; Menu Controls</h3>
         <table class="shortcut-table">
-          <tr><td>Arrow Keys</td><td>Move / Navigate Menus</td></tr>
-          <tr><td>Enter / Space</td><td>Confirm / Talk / Search</td></tr>
-          <tr><td>Esc / Option</td><td>Open Menu / Cancel</td></tr>
-          <tr><td>E / W / F / S</td><td>Use Item / Equip / Spell / Status</td></tr>
-          <tr><td>A (Battle)</td><td>Auto-Attack with Normal Hit</td></tr>
-          <tr><td>F (Battle)</td><td>Auto-Cast Strongest Spell</td></tr>
-          <tr><td>R / D / Q</td><td>Repeat / Defend / Flee Battle (Q outside battle: Quit Game)</td></tr>
-          <tr><td>PgUp / PgDn</td><td>Scroll Spell &amp; Item Lists</td></tr>
+          <tr><td>Arrow Keys</td><td>Move / Navigate</td></tr>
+          <tr><td>Enter / Space</td><td>Talk / Search / Confirm</td></tr>
+          <tr><td>Esc</td><td>Menu / Cancel</td></tr>
+          <tr><td>E</td><td>Use Item</td></tr>
+          <tr><td>W</td><td>Equip Item</td></tr>
+          <tr><td>F</td><td>Cast Spell</td></tr>
+          <tr><td>S</td><td>Character Status</td></tr>
+          <tr><td>PgUp / PgDn</td><td>Page Up / Down in Lists</td></tr>
         </table>
       </div>
 
       <div class="side-section">
-        <h3>🛒 Shops &amp; Equipment (v3.5)</h3>
-        <div class="guide-box">
-          In a shop, press <strong>Enter</strong> on an item to open its info card: stat numbers, <strong>who can equip it</strong>, and a <strong>quantity selector</strong> (<strong>◄ ►</strong> ±1, <strong>▲ ▼</strong> ±10, Enter to buy, Esc to cancel). If you can't afford it the card tells you so. The <strong>Item (E)</strong> and <strong>Equip (W)</strong> menus also list the wearers, e.g. <em>Def+4 [Xiaoyao]</em> / <em>防御+4【逍遥】</em>. The inspector under the game shows how each party member's stats would change.
-        </div>
+        <h3>⚔️ Battle Shortcuts</h3>
+        <table class="shortcut-table">
+          <tr><td>A</td><td>Auto Normal Attack</td></tr>
+          <tr><td>F</td><td>Auto Strongest Spell</td></tr>
+          <tr><td>E / W</td><td>Use Item / Throw</td></tr>
+          <tr><td>R</td><td>Repeat Last Action</td></tr>
+          <tr><td>D / Q</td><td>Defend / Flee</td></tr>
+          <tr><td>S</td><td>Status Window</td></tr>
+        </table>
       </div>
 
       <div class="side-section">
-        <h3>🗺️ Chapter 1 English Quick Walkthrough</h3>
-        <div class="guide-box">
-          <strong>1. Yuhang Inn — Li Xiaoyao's Room:</strong><br>
-          Press <strong>Space/Enter</strong> through Li's Aunt's wake-up scolding. Search the room (face a spot and press Enter) for <em>Herb</em>, <em>Hat</em>, <em>Sabot</em> and <em>Seal Y</em>. Equip the <em>Hat</em> with <strong>W</strong> (DEF +4).<br><br>
-          <strong>2. The Drunken Taoist:</strong><br>
-          A <strong>Drunken Taoist</strong> at the inn begs for wine. Give him some wine and, in return, he offers to teach you Martial Arts: meet him at the <strong>"Temple of Mt"</strong> the next evening (past the <strong>"Shili Hills"</strong>).<br><br>
-          <strong>3. Sacred Island:</strong><br>
-          When Li's Aunt faints, <strong>Doctor Hong</strong> treats her. The <strong>Miao Leader</strong> staying at the inn gives you the <em>Sky Hammer</em> and sends you after the Elixir of the <strong>"Moon Palace"</strong> on <strong>"Sacred Island"</strong>. Fisherman <strong>Zhang Si</strong> takes you there by boat. Smash all <strong>"6 Statues"</strong> with the Sky Hammer, step on the <strong>"Shining Plate"</strong> that appears, and follow the route to the Moon Palace to meet <strong>Zhao Ling'er</strong>!
-        </div>
-      </div>
-
-      <div class="side-section">
-        <h3>💾 Save Game Persistence</h3>
-        <div class="guide-box">
-          <strong>Auto-save:</strong> every 5 minutes (and when you switch tabs) the game saves to <strong>Slot 5</strong> (shown in-game as <em>Auto 5</em> / <em>自动档</em>) — but only while you are freely exploring, never in the middle of a battle, menu or dialog. <strong>⚡ Quick Save</strong> does the same on demand. Load it with <code>Load Game → Auto 5</code>.<br><br>
-          Use slots 1–4 for your own saves (<code>System → Save</code>). Everything is kept in your browser's <code>IndexedDB</code>; <strong>💾 Export Saves</strong> downloads a backup <code>.zip</code> of all <code>.rpg</code> files.
-        </div>
+        <h3>🛒 Shop &amp; Save</h3>
+        <table class="shortcut-table">
+          <tr><td>Enter (Shop)</td><td>Inspect &amp; Pick Qty</td></tr>
+          <tr><td>◄ ► / ▲ ▼</td><td>Qty ±1 / ±10</td></tr>
+          <tr><td>Auto 5</td><td>5-Min &amp; ⚡ Quick Save</td></tr>
+          <tr><td>File 1–4</td><td>Manual In-Game Saves</td></tr>
+        </table>
       </div>
     </aside>
   </main>
