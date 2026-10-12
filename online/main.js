@@ -41,7 +41,7 @@
       inspShopTip: 'In the shop press Enter on an item to choose how many to buy (◄ ► ±1, ▲ ▼ ±10).',
       price: 'Price', sell: 'Sells for', have: 'You have', cash: 'Cash', canBuy: 'Affordable',
       wearers: 'Who can equip', party: 'Your party', notInParty: 'not in party', cannot: 'cannot equip',
-      replaces: 'replaces', nothing: 'nothing', hitsAll: 'Hits all enemies', twice: 'Attacks twice',
+      replaces: 'replaces', nothing: 'nothing', equipped: 'already wears this', hitsAll: 'Hits all enemies', twice: 'Attacks twice',
       combo: 'Combo spell', regen: 'Regenerates HP/MP in battle', anyone: 'Anyone',
       parts: { head: 'Headgear', body: 'Body gear', clothes: 'Clothing', weapon: 'Weapon', feet: 'Footwear', accessory: 'Accessory' },
       ctx: { 1: 'Shop', 2: 'Inventory' }
@@ -61,7 +61,7 @@
       inspShopTip: '在商店中对物品按 Enter 可选择购买数量（◄ ► ±1，▲ ▼ ±10）。',
       price: '价格', sell: '卖出价', have: '现有', cash: '金钱', canBuy: '可买',
       wearers: '可装备人物', party: '队伍', notInParty: '不在队伍中', cannot: '不可装备',
-      replaces: '替换', nothing: '无', hitsAll: '攻击敌方全体', twice: '每回合攻击两次',
+      replaces: '替换', nothing: '无', equipped: '已装备此物', hitsAll: '攻击敌方全体', twice: '每回合攻击两次',
       combo: '合体法术', regen: '战斗中每回合恢复HP/MP', anyone: '全员',
       parts: { head: '头戴', body: '披挂', clothes: '身穿', weapon: '手持', feet: '脚穿', accessory: '配带' },
       ctx: { 1: '商店', 2: '物品' }
@@ -81,7 +81,7 @@
       inspShopTip: '在商店中對物品按 Enter 可選擇購買數量（◄ ► ±1，▲ ▼ ±10）。',
       price: '價格', sell: '賣出價', have: '現有', cash: '金錢', canBuy: '可買',
       wearers: '可裝備人物', party: '隊伍', notInParty: '不在隊伍中', cannot: '不可裝備',
-      replaces: '替換', nothing: '無', hitsAll: '攻擊敵方全體', twice: '每回合攻擊兩次',
+      replaces: '替換', nothing: '無', equipped: '已裝備此物', hitsAll: '攻擊敵方全體', twice: '每回合攻擊兩次',
       combo: '合體法術', regen: '戰鬥中每回合恢復HP/MP', anyone: '全員',
       parts: { head: '頭戴', body: '披掛', clothes: '身穿', weapon: '手持', feet: '腳穿', accessory: '配帶' },
       ctx: { 1: '商店', 2: '物品' }
@@ -636,6 +636,10 @@
       party.forEach(function (role) {
         if (it.r.indexOf(role) < 0 || pi === undefined) return;
         var curItem = webInfo(6, role, 11 + pi);
+        if (curItem === inspState.item) {
+          rows += '<div class="insp-cmp"><b>' + esc(roleNames[role] || role) + '</b> <span class="muted">' + esc(s.equipped) + '</span></div>';
+          return;
+        }
         var curName = curItem > 0 && items[curItem] ? (items[curItem].n[lang] || items[curItem].n.en) : s.nothing;
         var deltas = [];
         it.e.forEach(function (ev) {
