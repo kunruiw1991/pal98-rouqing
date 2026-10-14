@@ -9343,7 +9343,7 @@ async function createWasm() {
       JSEvents.keyEvent ||= _malloc(160);
   
       var keyEventHandlerFunc = (e) => {
-  
+        var isTildeEsc = (e.code === 'Backquote' || e.key === '`' || e.key === '~' || e.key === '·' || e.key === '～' || e.keyCode === 192);
         var keyEventData = JSEvents.keyEvent;
         HEAPF64[((keyEventData)>>3)] = e.timeStamp;
   
@@ -9351,19 +9351,19 @@ async function createWasm() {
   
         HEAP32[idx + 2] = e.location;
         HEAP8[keyEventData + 12] = e.ctrlKey;
-        HEAP8[keyEventData + 13] = e.shiftKey;
+        HEAP8[keyEventData + 13] = isTildeEsc ? 0 : e.shiftKey;
         HEAP8[keyEventData + 14] = e.altKey;
         HEAP8[keyEventData + 15] = e.metaKey;
         HEAP8[keyEventData + 16] = e.repeat;
-        HEAP32[idx + 5] = e.charCode;
-        HEAP32[idx + 6] = e.keyCode;
-        HEAP32[idx + 7] = e.which;
-        stringToUTF8(e.key || '', keyEventData + 32, 32);
-        stringToUTF8(e.code || '', keyEventData + 64, 32);
-        stringToUTF8(e.char || '', keyEventData + 96, 32);
+        HEAP32[idx + 5] = isTildeEsc ? 0 : e.charCode;
+        HEAP32[idx + 6] = isTildeEsc ? 27 : e.keyCode;
+        HEAP32[idx + 7] = isTildeEsc ? 27 : e.which;
+        stringToUTF8(isTildeEsc ? 'Escape' : (e.key || ''), keyEventData + 32, 32);
+        stringToUTF8(isTildeEsc ? 'Escape' : (e.code || ''), keyEventData + 64, 32);
+        stringToUTF8(isTildeEsc ? '' : (e.char || ''), keyEventData + 96, 32);
         stringToUTF8(e.locale || '', keyEventData + 128, 32);
   
-        if (((a1, a2, a3) => dynCall_iiii(callbackfunc, a1, a2, a3))(eventTypeId, keyEventData, userData)) e.preventDefault();
+        if (((a1, a2, a3) => dynCall_iiii(callbackfunc, a1, a2, a3))(eventTypeId, keyEventData, userData) || isTildeEsc) e.preventDefault();
       };
   
       var eventHandler = {
