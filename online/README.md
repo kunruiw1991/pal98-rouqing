@@ -46,7 +46,7 @@
 | :--- | :--- | :--- |
 | **Field & Menus** | `Arrow Keys` | Move character / Navigate menus |
 | | `Enter` / `Space` | Talk / Search / Confirm |
-| | `Esc` | Open Main Menu / Cancel |
+| | `Esc` / `~` (`` ` ``) | Open Main Menu / Cancel (iPad keyboard compatible) |
 | | `E` / `W` / `F` / `S` | Use Item / Equip Item / Cast Spell / Character Status |
 | | `PgUp` / `PgDn` | Page Up / Page Down in Spell & Item lists |
 | **Battle** | `A` | Auto Normal Attack |
